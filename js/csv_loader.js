@@ -1,4 +1,4 @@
-// JST: 2025-12-19 06:37:29 / csv_loader.js
+// JST: 2025-12-20 21:00:00 / csv_loader.js
 (function (global) {
   "use strict";
 
@@ -43,17 +43,20 @@
         global.Util.safeGet(row, idxC4)
       ];
 
-      var q = {
+      list.push({
         id: "csv-" + r,
         question: qText,
         choices: choices,
         answer: aRaw,
         explain: eText
-      };
-
-      list.push(q);
+      });
     }
     return list;
+  }
+
+  function parseCsvText(text) {
+    var rows = global.Util.parseCsv(String(text || ""));
+    return buildQuestionsFromRows(rows);
   }
 
   CsvLoader.loadFile = function (file, onOk, onErr) {
@@ -61,9 +64,7 @@
       var reader = new FileReader();
       reader.onload = function () {
         try {
-          var text = reader.result || "";
-          var rows = global.Util.parseCsv(String(text));
-          var list = buildQuestionsFromRows(rows);
+          var list = parseCsvText(reader.result || "");
           onOk(list);
         } catch (e) {
           onErr("CSV解析に失敗: " + String(e));
@@ -75,6 +76,30 @@
       reader.readAsText(file, "utf-8");
     } catch (e2) {
       onErr("CSV読み込みに失敗: " + String(e2));
+    }
+  };
+
+  // ★追加：URLからCSVを自動読込（SharePoint上の同一フォルダに置いたCSV向け）★
+  CsvLoader.loadUrl = function (url, onOk, onErr) {
+    try {
+      var req = new XMLHttpRequest();
+      req.open("GET", url, true);
+      req.onreadystatechange = function () {
+        if (req.readyState !== 4) return;
+        if (req.status >= 200 && req.status < 300) {
+          try {
+            var list = parseCsvText(req.responseText || "");
+            onOk(list);
+          } catch (e) {
+            onErr("CSV解析に失敗: " + String(e));
+          }
+        } else {
+          onErr("CSV URL読込に失敗: status=" + req.status);
+        }
+      };
+      req.send(null);
+    } catch (e2) {
+      onErr("CSV URL読込に失敗: " + String(e2));
     }
   };
 
