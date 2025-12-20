@@ -1,4 +1,4 @@
-// JST: 2025-12-20 21:00:00 / app.js
+// JST: 2025-12-20 21:10:00 / js/app.js
 (function (global) {
   "use strict";
 
@@ -9,30 +9,28 @@
     S.dataSource = { type: type, label: label, detail: detail };
   }
 
-  function markLoaded(count) {
+  function markLoaded() {
     var S = global.AppState;
     S.lastLoadedAt = global.Util.formatJstLike(new Date());
     global.Render.updateFooter();
     global.Render.updatePills();
-    global.Render.setStatus("読込完了（" + count + "件）");
+    global.Render.setStatus("読込完了（" + (S.total || 0) + "件）");
   }
 
   function isListMissingError(req) {
-    // リスト不存在っぽいものだけ「自動CSVへ」
     if (!req || typeof req !== "object") return false;
-
-    // 404 が最も多い（環境によりメッセージ差あり）
     if (req.status === 404) return true;
 
-    var t = (req.responseText || "");
-    t = String(t).toLowerCase();
-
-    // SharePointの典型メッセージをざっくり吸収
+    var t = String(req.responseText || "").toLowerCase();
     if (t.indexOf("does not exist") >= 0) return true;
     if (t.indexOf("list") >= 0 && t.indexOf("exist") >= 0) return true;
     if (t.indexOf("リスト") >= 0 && (t.indexOf("存在") >= 0 || t.indexOf("見つか") >= 0)) return true;
-
     return false;
+  }
+
+  function openCsvPickerWithMessage(msg) {
+    global.Render.setStatus("CSV選択が必要です");
+    global.Render.showModal("CSVを選択してください", msg || "CSVを選択して開始してください。");
   }
 
   function tryLoadFromCsvFallbackUrl(onOk, onErr) {
@@ -43,25 +41,21 @@
     setDataSource("csv", "CSV（自動）『" + fb.url + "』", fb.url);
 
     global.CsvLoader.loadUrl(fb.url, function (rawList) {
-      var normalized = global.Util.normalizeQuestions(rawList);
-      if (!normalized || normalized.length === 0) {
-        onErr("CSVは読めましたが、有効な問題が0件です。");
+      // ★Engine側で正規化する（ここでnormalizeしない）★
+      global.Engine.setQuestions(rawList);
+
+      if (!global.AppState.total) {
+        onErr("CSVは読めましたが、有効な問題（2択以上）が0件です。");
         return;
       }
-      global.Engine.setQuestions(normalized);
-      markLoaded(global.AppState.total);
+
+      markLoaded();
       global.Render.hideModal();
       global.Render.showQuestion();
       onOk();
     }, function (msg) {
       onErr(msg);
     });
-  }
-
-  function openCsvPickerWithMessage(msg) {
-    // 完全自動でファイルピッカーは開けないことがあるので、モーダルは残す
-    global.Render.setStatus("CSV選択が必要です");
-    global.Render.showModal("CSVを選択してください", msg || "CSVを選択して開始してください。");
   }
 
   function tryLoadFromSharePoint() {
@@ -71,18 +65,19 @@
     global.SpApi.tryPing(function () {
       global.Render.setStatus("SharePointから問題を取得中…");
       global.SpQuestions.loadAll(function (rawList) {
-        var normalized = global.Util.normalizeQuestions(rawList);
-        if (!normalized || normalized.length === 0) {
-          // リストはあるが中身が無い → CSV自動へは行かず、案内だけ
-          openCsvPickerWithMessage("SharePointから問題を取得しましたが、有効な問題が0件です。\nCSVで開始できます。");
+        // ★Engine側で正規化する（ここでnormalizeしない）★
+        global.Engine.setQuestions(rawList);
+
+        if (!global.AppState.total) {
+          openCsvPickerWithMessage("SharePointから問題を取得しましたが、有効な問題（2択以上）が0件です。\nCSVで開始できます。");
           return;
         }
-        global.Engine.setQuestions(normalized);
-        markLoaded(global.AppState.total);
+
+        markLoaded();
         global.Render.hideModal();
         global.Render.showQuestion();
       }, function (req) {
-        // ★ここ：リストが無い場合だけ自動CSVへ
+        // リスト無しだけ自動CSVへ
         if (isListMissingError(req)) {
           tryLoadFromCsvFallbackUrl(function(){}, function (msg) {
             openCsvPickerWithMessage(
@@ -95,7 +90,7 @@
           return;
         }
 
-        // それ以外（権限不足等）は、CSV選択へ誘導（自動にはしない）
+        // それ以外（権限不足など）は手動CSVへ誘導
         openCsvPickerWithMessage(
           "SharePointからの取得に失敗しました。\n"
           + "status: " + (req && req.status ? req.status : "-") + "\n\n"
@@ -103,7 +98,7 @@
         );
       });
     }, function (req) {
-      // サイト自体に繋がらない等 → CSVフォールバックも試し、ダメなら選択へ
+      // サイトに繋がらない等 → CSV自動も試す
       tryLoadFromCsvFallbackUrl(function(){}, function (msg) {
         openCsvPickerWithMessage(
           "SharePointに接続できません。\n"
@@ -120,13 +115,15 @@
     setDataSource("csv", "CSV『" + (file && file.name ? file.name : "選択ファイル") + "』", "");
 
     global.CsvLoader.loadFile(file, function (rawList) {
-      var normalized = global.Util.normalizeQuestions(rawList);
-      if (!normalized || normalized.length === 0) {
+      // ★Engine側で正規化する（ここでnormalizeしない）★
+      global.Engine.setQuestions(rawList);
+
+      if (!global.AppState.total) {
         openCsvPickerWithMessage("CSVに有効な問題（2択以上）がありません。");
         return;
       }
-      global.Engine.setQuestions(normalized);
-      markLoaded(global.AppState.total);
+
+      markLoaded();
       global.Render.hideModal();
       global.Render.showQuestion();
     }, function (errMsg) {
@@ -160,24 +157,17 @@
     };
 
     el("btnChangeSource").onclick = function () {
-      // 手動で切り替えたい時用（モーダルを出す）
       global.Render.showModal("データソース変更", "CSVを選択するか、SharePointを再読込してください。");
     };
 
     // modal
-    el("btnModalRetrySP").onclick = function () {
-      tryLoadFromSharePoint();
-    };
+    el("btnModalRetrySP").onclick = function () { tryLoadFromSharePoint(); };
     el("btnModalPickCSV").onclick = function () {
       el("fileCsv").value = "";
       el("fileCsv").click();
     };
-    el("btnModalClose").onclick = function () {
-      global.Render.hideModal();
-    };
-    el("modalBackdrop").onclick = function () {
-      global.Render.hideModal();
-    };
+    el("btnModalClose").onclick = function () { global.Render.hideModal(); };
+    el("modalBackdrop").onclick = function () { global.Render.hideModal(); };
 
     el("fileCsv").onchange = function () {
       var files = el("fileCsv").files;
