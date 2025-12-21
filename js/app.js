@@ -1,11 +1,10 @@
-// app.js / 作成日時(JST): 2025-12-21 15:40:00
+// app.js / 作成日時(JST): 2025-12-21 15:55:00
 (function (global) {
   "use strict";
 
   function applyFilterAndRender() {
     AppState.visible = Engine.applyCategoryFilter(AppState.questions, AppState.selectedCategory);
 
-    // 選択インデックス補正
     if (AppState.selectedIndex >= AppState.visible.length) AppState.selectedIndex = 0;
     if (AppState.selectedIndex < 0) AppState.selectedIndex = 0;
 
@@ -22,7 +21,7 @@
     AppState.loadedAt = Util.nowText();
     AppState.selectedIndex = 0;
 
-    // カテゴリ選択が無効になっていたらクリア
+    // カテゴリ整合
     if (AppState.selectedCategory) {
       var ok = false;
       for (var i = 0; i < AppState.categories.length; i++) {
@@ -35,23 +34,51 @@
   }
 
   function loadFallback() {
-    Render.showNotice("読込", "questions_fallback.csv を読み込んでいます…");
+    var abs = Util.resolveUrl("./questions_fallback.csv");
+
+    var msg = "questions_fallback.csv を読み込んでいます…\n" +
+              Util.pageInfoText() + "\n" +
+              "CSV: " + abs;
+
+    if (Util.isDavWWWRootUrl()) {
+      msg += "\n\n注意: DavWWWRoot で開いている可能性があります。\n通常の https URL で開いてください。";
+    }
+
+    Render.showNotice("読込", msg);
+
     CsvLoader.loadFallback(function (norm) {
       setQuestions(norm, "CSV:fallback");
-      Render.showNotice("読込完了", "questions_fallback.csv を読み込みました。件数: " + AppState.questions.length);
+      Render.showNotice(
+        "読込完了",
+        "questions_fallback.csv を読み込みました。\n" +
+        "件数: " + AppState.questions.length + "\n" +
+        "CSV: " + abs
+      );
+
+      // ボタン類を「画面確認用」に最小限有効化（前/次はまだ未実装）
+      var btnPrev = Util.qs("#btnPrev");
+      var btnNext = Util.qs("#btnNext");
+      if (btnPrev) btnPrev.disabled = false;
+      if (btnNext) btnNext.disabled = false;
     }, function (errMsg) {
       AppState.dataSource = "CSV:fallback(失敗)";
       AppState.loadedAt = Util.nowText();
       Render.renderStatus();
-      Render.showNotice("エラー", errMsg + "\n同じディレクトリに questions_fallback.csv があるか、https配下で開いているか確認してください。");
+
+      Render.showNotice(
+        "エラー",
+        errMsg + "\n\n" +
+        "確認事項:\n" +
+        "- index.html と同じフォルダに questions_fallback.csv がある\n" +
+        "- ブラウザで questions_fallback.csv を直接開ける（権限/404でない）\n" +
+        "- https の通常URLで開いている（DavWWWRoot不可）\n"
+      );
     });
   }
 
   function wireEvents() {
     var btnLoad = Util.qs("#btnLoadFallback");
-    if (btnLoad) btnLoad.onclick = function () {
-      loadFallback();
-    };
+    if (btnLoad) btnLoad.onclick = function () { loadFallback(); };
 
     var sel = Util.qs("#categorySelect");
     if (sel) sel.onchange = function () {
@@ -60,12 +87,12 @@
       applyFilterAndRender();
     };
 
-    // 一覧クリックで選択
     var list = Util.qs("#questionList");
     if (list) {
       list.onclick = function (ev) {
-        ev = ev || window.event;
+        ev = ev || global.event;
         var target = ev.target || ev.srcElement;
+
         while (target && target !== list) {
           if (target.getAttribute && target.getAttribute("data-index") !== null) {
             var idx = parseInt(target.getAttribute("data-index"), 10);
@@ -81,23 +108,37 @@
       };
     }
 
-    // 印刷/CSVは後で実装（今はUIだけ）
     var btnPrint = Util.qs("#btnPrint");
-    if (btnPrint) btnPrint.onclick = function () {
-      window.print();
-    };
+    if (btnPrint) btnPrint.onclick = function () { global.print(); };
 
     var btnExport = Util.qs("#btnExportCsv");
     if (btnExport) btnExport.onclick = function () {
-      Render.showNotice("未実装", "CSV出力は次のフェーズで追加します（表示中の行だけ等）。");
+      Render.showNotice("未実装", "CSV出力は次のフェーズで追加します。");
+    };
+
+    // 前へ/次へ（暫定：画面確認用にリスト内を移動するだけ）
+    var btnPrev = Util.qs("#btnPrev");
+    var btnNext = Util.qs("#btnNext");
+
+    if (btnPrev) btnPrev.onclick = function () {
+      if (!AppState.visible || AppState.visible.length === 0) return;
+      AppState.selectedIndex = Math.max(0, AppState.selectedIndex - 1);
+      Render.renderList();
+      Render.renderCurrentQuestion();
+    };
+
+    if (btnNext) btnNext.onclick = function () {
+      if (!AppState.visible || AppState.visible.length === 0) return;
+      AppState.selectedIndex = Math.min(AppState.visible.length - 1, AppState.selectedIndex + 1);
+      Render.renderList();
+      Render.renderCurrentQuestion();
     };
   }
 
   function init() {
     wireEvents();
     Render.renderStatus();
-    // 起動時に自動でフォールバックCSVを読込（要件）
-    loadFallback();
+    loadFallback(); // 起動時自動読込
   }
 
   if (document.readyState === "loading") {
