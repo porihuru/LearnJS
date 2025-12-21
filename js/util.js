@@ -1,4 +1,4 @@
-// util.js / 作成日時(JST): 2025-12-21 15:40:00
+// util.js / 作成日時(JST): 2025-12-21 15:55:00
 (function (global) {
   "use strict";
 
@@ -26,7 +26,6 @@
   }
 
   function nowText() {
-    // 表示用（厳密なフォーマットでなくてOK）
     var d = new Date();
     var y = d.getFullYear();
     var m = ("0" + (d.getMonth() + 1)).slice(-2);
@@ -37,11 +36,30 @@
     return y + "-" + m + "-" + da + " " + hh + ":" + mm + ":" + ss;
   }
 
+  // 相対URLを絶対URLへ（Edge95/IEモードでも動く）
+  function resolveUrl(relativePath) {
+    var a = document.createElement("a");
+    a.href = relativePath;
+    return a.href;
+  }
+
+  function isDavWWWRootUrl(url) {
+    url = url || global.location.href;
+    return url.indexOf("DavWWWRoot") !== -1;
+  }
+
+  function pageInfoText() {
+    return "PAGE: " + global.location.href + "\nBASE: " + resolveUrl("./");
+  }
+
   global.Util = {
     qs: qs,
     qsa: qsa,
     setText: setText,
     escapeHTML: escapeHTML,
-    nowText: nowText
+    nowText: nowText,
+    resolveUrl: resolveUrl,
+    isDavWWWRootUrl: isDavWWWRootUrl,
+    pageInfoText: pageInfoText
   };
 })(window);
