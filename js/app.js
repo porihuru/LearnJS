@@ -1,4 +1,4 @@
-// app.js / 作成日時(JST): 2025-12-21 15:55:00
+// app.js / 作成日時(JST): 2025-12-22 14:10:00
 (function (global) {
   "use strict";
 
@@ -10,14 +10,13 @@
 
     Render.renderStatus();
     Render.renderCategorySelect();
-    Render.renderList();
     Render.renderCurrentQuestion();
   }
 
   function setQuestions(norm, sourceLabel) {
     AppState.questions = norm.questions || [];
     AppState.categories = norm.categories || [];
-    AppState.dataSource = sourceLabel || "CSV:fallback";
+    AppState.dataSource = sourceLabel || "---";
     AppState.loadedAt = Util.nowText();
     AppState.selectedIndex = 0;
 
@@ -33,112 +32,100 @@
     applyFilterAndRender();
   }
 
-  function loadFallback() {
-    var abs = Util.resolveUrl("./questions_fallback.csv");
-
-    var msg = "questions_fallback.csv を読み込んでいます…\n" +
-              Util.pageInfoText() + "\n" +
-              "CSV: " + abs;
-
-    if (Util.isDavWWWRootUrl()) {
-      msg += "\n\n注意: DavWWWRoot で開いている可能性があります。\n通常の https URL で開いてください。";
-    }
-
-    Render.showNotice("読込", msg);
-
+  function loadCsvFallback(reasonLine) {
+    Render.log("CSVフォールバック開始: " + (reasonLine || ""));
     CsvLoader.loadFallback(function (norm) {
       setQuestions(norm, "CSV:fallback");
-      Render.showNotice(
-        "読込完了",
-        "questions_fallback.csv を読み込みました。\n" +
-        "件数: " + AppState.questions.length + "\n" +
-        "CSV: " + abs
-      );
-
-      // ボタン類を「画面確認用」に最小限有効化（前/次はまだ未実装）
-      var btnPrev = Util.qs("#btnPrev");
-      var btnNext = Util.qs("#btnNext");
-      if (btnPrev) btnPrev.disabled = false;
-      if (btnNext) btnNext.disabled = false;
+      Render.log("CSV読込成功: 件数=" + AppState.questions.length);
+      enableNavButtons();
     }, function (errMsg) {
       AppState.dataSource = "CSV:fallback(失敗)";
       AppState.loadedAt = Util.nowText();
       Render.renderStatus();
-
-      Render.showNotice(
-        "エラー",
-        errMsg + "\n\n" +
-        "確認事項:\n" +
-        "- index.html と同じフォルダに questions_fallback.csv がある\n" +
-        "- ブラウザで questions_fallback.csv を直接開ける（権限/404でない）\n" +
-        "- https の通常URLで開いている（DavWWWRoot不可）\n"
-      );
+      Render.log("CSV読込失敗:\n" + errMsg);
     });
   }
 
-  function wireEvents() {
-    var btnLoad = Util.qs("#btnLoadFallback");
-    if (btnLoad) btnLoad.onclick = function () { loadFallback(); };
+  function trySharePointThenFallback() {
+    // DavWWWRoot注意
+    if (Util.isDavWWWRootUrl && Util.isDavWWWRootUrl()) {
+      Render.log("注意: DavWWWRoot 経由で開いている可能性があります。通常の https URL で開いてください。");
+    }
 
+    Render.log("SharePoint接続試行: リスト『" + SP_CONFIG.listTitle + "』");
+    Render.log("SP webRoot: " + (SP_BASE.webRoot || "(空)"));
+    Render.log("SP api: " + (SP_BASE.api || "(空)"));
+
+    SP_Questions.loadQuestions(function (norm) {
+      setQuestions(norm, "SP:" + SP_CONFIG.listTitle);
+      Render.log("SharePoint読込成功: 件数=" + AppState.questions.length);
+      enableNavButtons();
+    }, function (errMsg) {
+      Render.log("SharePoint接続失敗。理由:\n" + errMsg);
+      loadCsvFallback("SharePoint接続に失敗したため");
+    });
+  }
+
+  function enableNavButtons() {
+    var btnPrev = Util.qs("#btnPrev");
+    var btnNext = Util.qs("#btnNext");
+    if (btnPrev) btnPrev.disabled = false;
+    if (btnNext) btnNext.disabled = false;
+  }
+
+  function wireEvents() {
     var sel = Util.qs("#categorySelect");
     if (sel) sel.onchange = function () {
       AppState.selectedCategory = sel.value || "";
       AppState.selectedIndex = 0;
       applyFilterAndRender();
+      Render.log("カテゴリ変更: " + (AppState.selectedCategory || "(すべて)"));
     };
 
-    var list = Util.qs("#questionList");
-    if (list) {
-      list.onclick = function (ev) {
-        ev = ev || global.event;
-        var target = ev.target || ev.srcElement;
-
-        while (target && target !== list) {
-          if (target.getAttribute && target.getAttribute("data-index") !== null) {
-            var idx = parseInt(target.getAttribute("data-index"), 10);
-            if (!isNaN(idx)) {
-              AppState.selectedIndex = idx;
-              Render.renderList();
-              Render.renderCurrentQuestion();
-            }
-            break;
-          }
-          target = target.parentNode;
-        }
-      };
-    }
-
     var btnPrint = Util.qs("#btnPrint");
-    if (btnPrint) btnPrint.onclick = function () { global.print(); };
+    if (btnPrint) btnPrint.onclick = function () {
+      global.print();
+    };
 
     var btnExport = Util.qs("#btnExportCsv");
     if (btnExport) btnExport.onclick = function () {
-      Render.showNotice("未実装", "CSV出力は次のフェーズで追加します。");
+      Render.log("CSV出力は次フェーズで実装します。");
     };
 
-    // 前へ/次へ（暫定：画面確認用にリスト内を移動するだけ）
+    // 画面確認用の前後移動（出題ロジックは後で）
     var btnPrev = Util.qs("#btnPrev");
     var btnNext = Util.qs("#btnNext");
 
     if (btnPrev) btnPrev.onclick = function () {
       if (!AppState.visible || AppState.visible.length === 0) return;
       AppState.selectedIndex = Math.max(0, AppState.selectedIndex - 1);
-      Render.renderList();
       Render.renderCurrentQuestion();
     };
 
     if (btnNext) btnNext.onclick = function () {
       if (!AppState.visible || AppState.visible.length === 0) return;
       AppState.selectedIndex = Math.min(AppState.visible.length - 1, AppState.selectedIndex + 1);
-      Render.renderList();
       Render.renderCurrentQuestion();
+    };
+
+    // ランダム開始／ID指定開始（ロジックは次フェーズ）
+    var btnR = Util.qs("#btnRandomStart");
+    if (btnR) btnR.onclick = function () {
+      Render.log("ランダムスタート: （ロジックは次フェーズで実装）");
+    };
+
+    var btnS = Util.qs("#btnStart");
+    if (btnS) btnS.onclick = function () {
+      Render.log("ID指定スタート: （ロジックは次フェーズで実装）");
     };
   }
 
   function init() {
     wireEvents();
+    Render.clearLog();
     Render.renderStatus();
-    loadFallback(); // 起動時自動読込
+    Render.log("起動");
+    trySharePointThenFallback();
   }
 
   if (document.readyState === "loading") {
