@@ -1,6 +1,5 @@
-/* style.css / 作成日時(JST): 2025-12-21 15:32:01 */
+/* style.css / 作成日時(JST): 2025-12-21 15:40:00 */
 
-/* Base */
 * { box-sizing: border-box; }
 html, body { height: 100%; }
 body {
@@ -10,8 +9,8 @@ body {
   background: #f6f7f9;
 }
 
-/* Helpers */
 .muted { color: #666; }
+
 .badge {
   display: inline-block;
   padding: 4px 8px;
@@ -44,15 +43,8 @@ body {
 }
 
 .app-brand { display: flex; align-items: baseline; gap: 10px; }
-.app-brand__title {
-  font-size: 18px;
-  font-weight: 700;
-  letter-spacing: 0.2px;
-}
-.app-brand__subtitle {
-  font-size: 13px;
-  color: #444;
-}
+.app-brand__title { font-size: 18px; font-weight: 700; }
+.app-brand__subtitle { font-size: 13px; color: #444; }
 
 .app-status {
   display: flex;
@@ -88,8 +80,7 @@ body {
   min-width: 200px;
   outline: none;
 }
-#categorySelect.field__control { min-width: 160px; }
-#searchInput.field__control { min-width: 280px; }
+#categorySelect.field__control { min-width: 180px; }
 
 .field__control:focus {
   border-color: #6a8cff;
@@ -169,11 +160,12 @@ body {
 
 /* List */
 .list-tools { display: flex; gap: 8px; margin-bottom: 10px; }
+
 .q-list {
   border: 1px solid #e2e7ef;
   border-radius: 10px;
   overflow: auto;
-  height: calc(100vh - 260px);
+  height: calc(100vh - 240px);
   min-height: 280px;
   background: #fff;
 }
@@ -183,7 +175,6 @@ body {
   font-size: 13px;
 }
 
-/* Example row style reserved for JS */
 .q-row {
   padding: 10px 12px;
   border-bottom: 1px solid #eef2f6;
@@ -220,11 +211,7 @@ body {
   padding: 12px;
   background: #fff;
 }
-.quiz-card__label {
-  font-size: 12px;
-  color: #666;
-  margin-bottom: 8px;
-}
+.quiz-card__label { font-size: 12px; color: #666; margin-bottom: 8px; }
 .quiz-card__question {
   font-size: 16px;
   line-height: 1.6;
@@ -234,11 +221,7 @@ body {
 
 /* Choices */
 .choices { margin-top: 12px; }
-.choices__label {
-  font-size: 12px;
-  color: #666;
-  margin-bottom: 8px;
-}
+.choices__label { font-size: 12px; color: #666; margin-bottom: 8px; }
 .choices__grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -257,8 +240,6 @@ body {
   min-height: 58px;
 }
 .choice-btn:hover { background: #f7f9fc; }
-.choice-btn:active { transform: translateY(1px); }
-
 .choice-btn__mark {
   display: inline-flex;
   align-items: center;
@@ -272,23 +253,9 @@ body {
   background: #fff;
   flex: 0 0 auto;
 }
-.choice-btn__text {
-  font-size: 14px;
-  line-height: 1.5;
-  white-space: pre-wrap;
-}
+.choice-btn__text { font-size: 14px; line-height: 1.5; white-space: pre-wrap; }
 
-/* reserved states for later (JS will toggle these) */
-.choice-btn--selected { border-color: #6a8cff; box-shadow: 0 0 0 2px rgba(106, 140, 255, 0.18); }
-.choice-btn--correct { border-color: #2f9e44; box-shadow: 0 0 0 2px rgba(47, 158, 68, 0.15); }
-.choice-btn--wrong   { border-color: #e03131; box-shadow: 0 0 0 2px rgba(224, 49, 49, 0.15); }
-
-.choices__actions {
-  display: flex;
-  gap: 8px;
-  margin-top: 10px;
-  flex-wrap: wrap;
-}
+.choices__actions { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
 
 /* Explanation */
 .explain {
@@ -312,15 +279,9 @@ body {
   white-space: pre-wrap;
 }
 
-/* Quiz controls */
-.quiz-controls {
-  display: flex;
-  gap: 8px;
-  margin-top: 12px;
-  flex-wrap: wrap;
-}
+/* Controls */
+.quiz-controls { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
 
-/* Notice */
 .notice {
   margin-top: 12px;
   border: 1px dashed #cfd6df;
@@ -331,12 +292,6 @@ body {
 .notice__title { font-size: 12px; color: #666; margin-bottom: 6px; }
 .notice__body  { font-size: 12px; color: #222; white-space: pre-wrap; }
 
-/* Highlight reserved for search hit */
-.hl {
-  color: #c00;
-  font-weight: 700;
-}
-
 /* Footer */
 .app-footer {
   border-top: 1px solid #d7dde6;
@@ -345,13 +300,7 @@ body {
   font-size: 12px;
   color: #333;
 }
-.footer-row {
-  display: flex;
-  gap: 10px;
-  flex-wrap: wrap;
-  margin-top: 6px;
-}
-.footer-row:first-child { margin-top: 0; }
+.footer-row { display: flex; gap: 10px; flex-wrap: wrap; }
 .footer-item { white-space: nowrap; }
 
 /* Responsive */
@@ -359,7 +308,6 @@ body {
   .layout { flex-direction: column; }
   .panel--list, .panel--quiz { width: 100%; }
   .q-list { height: 260px; }
-  #searchInput.field__control { min-width: 180px; }
   .choices__grid { grid-template-columns: 1fr; }
 }
 
