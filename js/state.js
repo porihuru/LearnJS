@@ -1,25 +1,16 @@
-// state.js
-// 2025-12-21 JST
+// state.js / 作成日時(JST): 2025-12-21 15:40:00
 (function (global) {
   "use strict";
 
-  global.AppState = {
-    questions: [],
-    categoryStats: {},
-    validation: {
-      ok: false,
-      errors: [],
-      warnings: [],
-      summary: ""
-    },
-    quiz: {
-      set: [],
-      idx: 0,
-      score: 0
-    },
-    config: {
-      fallbackCsvUrl: "./questions_fallback.csv",
-      sampleCsvUrl: "./questions_sample.csv"
-    }
+  var AppState = {
+    dataSource: "---",
+    loadedAt: "---",
+    questions: [],         // 全件
+    visible: [],           // カテゴリフィルタ後
+    categories: [],
+    selectedCategory: "",
+    selectedIndex: 0       // visible内のインデックス
   };
+
+  global.AppState = AppState;
 })(window);
