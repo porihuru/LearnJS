@@ -1,4 +1,4 @@
-/* style.css / 作成日時(JST): 2025-12-21 16:12:00 */
+/* style.css / 作成日時(JST): 2025-12-21 16:24:00 */
 
 * { box-sizing: border-box; }
 html, body { height: 100%; }
@@ -95,8 +95,16 @@ body {
   padding-right: 8px;
 }
 
-/* Start controls (カテゴリ右側のセット) */
+/* Start controls（カテゴリ右側：ブロック分割） */
 .start-controls {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+/* それぞれの外枠 */
+.start-block {
   display: flex;
   align-items: center;
   gap: 8px;
@@ -113,12 +121,6 @@ body {
   white-space: nowrap;
 }
 .inline-text--strong { font-weight: 700; }
-
-.sep {
-  color: #999;
-  padding: 0 2px;
-  user-select: none;
-}
 
 /* Buttons */
 .btn {
@@ -295,7 +297,8 @@ body {
 @media (max-width: 980px) {
   .choices__grid { grid-template-columns: 1fr; }
   .field__control--num { width: 80px; min-width: 80px; }
-  .start-controls { gap: 6px; }
+  .start-controls { gap: 8px; }
+  .start-block { gap: 6px; }
 }
 
 /* Print */
