@@ -1,104 +1,82 @@
-// JST: 2025-12-19 06:37:29 / engine.js
+// engine.js
+// 2025-12-21 JST
 (function (global) {
   "use strict";
 
-  var Engine = {};
+  // Choice1 が正解。出題時に choices をシャッフルし correctIndex を作る。
+  function prepForQuiz(row) {
+    var correct = row.choice1;
+    var arr = [row.choice1, row.choice2, row.choice3, row.choice4];
+    Util.shuffleInPlace(arr);
 
-  Engine.reset = function () {
-    var S = global.AppState;
-    S.questions = [];
-    S.total = 0;
-    S.index = 0;
-    S.correct = 0;
-    S.startedAtMs = 0;
-    S.current = null;
-    S.currentChoices = [];
-    S.answered = false;
-  };
-
-  Engine.setQuestions = function (rawQuestions) {
-    var S = global.AppState;
-
-    var normalized = global.Util.normalizeQuestions(rawQuestions || []);
-    // 問題順もランダム（必要なければ外してOK）
-    normalized = global.Util.shuffle(normalized);
-
-    S.questions = normalized;
-    S.total = normalized.length;
-    S.index = 0;
-    S.correct = 0;
-    S.startedAtMs = global.Util.nowMs();
-    S.answered = false;
-
-    Engine.loadCurrent();
-  };
-
-  Engine.loadCurrent = function () {
-    var S = global.AppState;
-    if (S.index < 0) S.index = 0;
-
-    if (S.index >= S.total) {
-      S.current = null;
-      S.currentChoices = [];
-      return;
-    }
-
-    S.current = S.questions[S.index];
-    S.answered = false;
-
-    // choicesを {text,isCorrect} にしてシャッフル
-    var c = [];
-    for (var i = 0; i < S.current.choices.length; i++) {
-      var t = S.current.choices[i];
-      c.push({ text: t, isCorrect: (t === S.current.answerText) });
-    }
-    S.currentChoices = global.Util.shuffle(c);
-  };
-
-  Engine.answer = function (choiceObj) {
-    var S = global.AppState;
-    if (!S.current) return { done: true };
-    if (S.answered) return { ignored: true };
-
-    S.answered = true;
-
-    var ok = !!(choiceObj && choiceObj.isCorrect);
-    if (ok) S.correct++;
+    var correctIndex = -1;
+    for (var i = 0; i < arr.length; i++) if (arr[i] === correct) { correctIndex = i; break; }
 
     return {
-      ok: ok,
-      correctAnswer: S.current.answerText,
-      explain: S.current.explain || ""
+      id: row.id,
+      category: row.category,
+      question: row.question,
+      choices: arr,
+      correctIndex: correctIndex,
+      explanation: row.explanation
     };
+  }
+
+  // balanced=true: カテゴリを交互に（ラウンドロビン）
+  function buildQuizSet(allRows, total, balanced) {
+    var pool = allRows.slice();
+    Util.shuffleInPlace(pool);
+
+    var picked = [];
+
+    if (!balanced) {
+      var m = Math.min(total, pool.length);
+      for (var i = 0; i < m; i++) picked.push(pool[i]);
+      return mapPrep(picked);
+    }
+
+    var byCat = Util.groupBy(pool, function (r) { return r.category; });
+    var cats = Object.keys(byCat).sort();
+
+    // カテゴリ内もシャッフル
+    for (var c = 0; c < cats.length; c++) {
+      Util.shuffleInPlace(byCat[cats[c]]);
+    }
+
+    var madeProgress = true;
+    while (picked.length < total && madeProgress) {
+      madeProgress = false;
+      for (var ci = 0; ci < cats.length; ci++) {
+        if (picked.length >= total) break;
+        var list = byCat[cats[ci]];
+        if (list && list.length) {
+          picked.push(list.pop());
+          madeProgress = true;
+        }
+      }
+    }
+
+    // まだ足りないなら残りから補完
+    if (picked.length < total) {
+      var rest = [];
+      for (var ci2 = 0; ci2 < cats.length; ci2++) {
+        var l2 = byCat[cats[ci2]];
+        if (l2 && l2.length) rest = rest.concat(l2);
+      }
+      Util.shuffleInPlace(rest);
+      while (picked.length < total && rest.length) picked.push(rest.pop());
+    }
+
+    return mapPrep(picked);
+  }
+
+  function mapPrep(rows) {
+    var out = [];
+    for (var i = 0; i < rows.length; i++) out.push(prepForQuiz(rows[i]));
+    return out;
+  }
+
+  global.Engine = {
+    buildQuizSet: buildQuizSet
   };
-
-  Engine.next = function () {
-    var S = global.AppState;
-    S.index++;
-    Engine.loadCurrent();
-  };
-
-  Engine.restart = function () {
-    var S = global.AppState;
-    if (!S.questions || S.questions.length === 0) return;
-    // restart時も並び替える
-    var reshuffled = global.Util.shuffle(S.questions);
-    S.questions = reshuffled;
-    S.total = reshuffled.length;
-    S.index = 0;
-    S.correct = 0;
-    S.startedAtMs = global.Util.nowMs();
-    S.answered = false;
-    Engine.loadCurrent();
-  };
-
-  Engine.getElapsedSec = function () {
-    var S = global.AppState;
-    if (!S.startedAtMs) return 0;
-    var ms = global.Util.nowMs() - S.startedAtMs;
-    return Math.max(0, Math.floor(ms / 1000));
-  };
-
-  global.Engine = Engine;
-
 })(window);
