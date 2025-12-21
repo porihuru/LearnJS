@@ -1,133 +1,104 @@
-<!-- JST: 2025-12-20 21:00:00 / index.html -->
+<!-- index.html -->
+<!-- 2025-12-21 JST -->
 <!doctype html>
 <html lang="ja">
 <head>
-  <meta charset="utf-8">
-  <meta http-equiv="x-ua-compatible" content="IE=edge">
-  <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>勉強アプリ（SharePoint優先 / CSVフォールバック）</title>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>FP3 クイズ（CSV: Choice1が正解）</title>
   <style>
-    body{font-family:system-ui, -apple-system, "Segoe UI", Arial, sans-serif; margin:0; background:#f5f6f8; color:#111;}
-    header{background:#fff; border-bottom:1px solid #ddd; padding:12px 12px 8px;}
-    .row{display:flex; gap:8px; align-items:center; flex-wrap:wrap;}
-    .grow{flex:1;}
-    .muted{color:#666; font-size:12px;}
-    .btn{border:1px solid #bbb; background:#fff; padding:8px 10px; border-radius:8px; cursor:pointer;}
-    .btn:active{transform:translateY(1px);}
-    .btn.primary{background:#1e6bd6; color:#fff; border-color:#1e6bd6;}
-    .btn.danger{background:#c9302c; color:#fff; border-color:#c9302c;}
-    main{padding:12px; max-width:900px; margin:0 auto;}
-    .card{background:#fff; border:1px solid #ddd; border-radius:12px; padding:14px; box-shadow:0 1px 2px rgba(0,0,0,.05);}
-    .hidden{display:none !important;}
-    .q-title{font-size:18px; font-weight:700; line-height:1.35; margin:0 0 10px;}
-    .choices{display:flex; flex-direction:column; gap:8px; margin-top:10px;}
-    .choice{width:100%; text-align:left; padding:12px; border-radius:10px; border:1px solid #c9ccd1; background:#fff; cursor:pointer; font-size:16px;}
-    .choice:disabled{opacity:.6; cursor:not-allowed;}
-    .judge{margin-top:12px; padding:10px; border-radius:10px; border:1px solid #ddd; background:#fafafa;}
-    .judge.ok{border-color:#5cb85c; background:#f2fff2;}
-    .judge.ng{border-color:#d9534f; background:#fff2f2;}
-    .judge h3{margin:0 0 6px; font-size:16px;}
-    .judge .small{font-size:13px; color:#333; white-space:pre-wrap;}
-    footer{max-width:900px; margin:8px auto 18px; padding:0 12px; color:#666; font-size:12px;}
-    .footerBox{border:1px dashed #bbb; border-radius:10px; padding:10px; background:#fff;}
-    .hr{height:1px; background:#eee; margin:10px 0;}
-
-    .modalWrap{position:fixed; inset:0; z-index:9999;}
-    .backdrop{position:absolute; inset:0; background:rgba(0,0,0,.45);}
-    .modal{position:absolute; left:50%; top:50%; transform:translate(-50%,-50%); width:min(520px, calc(100% - 24px));
-           background:#fff; border-radius:12px; border:1px solid #ddd; padding:14px;}
-    .modal h2{margin:0 0 8px; font-size:16px;}
-    .modal p{margin:0 0 10px; color:#333; font-size:13px; white-space:pre-wrap;}
-    .modalActions{display:flex; gap:8px; flex-wrap:wrap;}
-    .pill{display:inline-block; font-size:12px; color:#333; background:#f1f2f4; border:1px solid #ddd; padding:4px 8px; border-radius:999px;}
+    body { font-family: system-ui, -apple-system, "Segoe UI", sans-serif; margin: 12px; }
+    h1 { font-size: 18px; margin: 0 0 10px; }
+    .box { border: 1px solid #ccc; border-radius: 8px; padding: 10px; margin-bottom: 10px; }
+    .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+    textarea { width: 100%; height: 140px; }
+    button { padding: 10px 12px; border-radius: 8px; border: 1px solid #888; background: #fff; }
+    button:disabled { opacity: .5; }
+    .ok { color: #0a7; font-weight: 700; }
+    .ng { color: #c00; font-weight: 700; }
+    .small { font-size: 12px; color: #555; }
+    .stat { font-size: 13px; }
+    .question { font-size: 16px; font-weight: 700; margin: 6px 0 10px; }
+    .choices { display: grid; gap: 8px; }
+    .choiceBtn { text-align: left; width: 100%; }
+    .choiceBtn.correct { border-color: #0a7; }
+    .choiceBtn.wrong { border-color: #c00; }
+    .pill { display: inline-block; padding: 2px 8px; border: 1px solid #aaa; border-radius: 999px; font-size: 12px; }
+    .hidden { display: none; }
+    pre { white-space: pre-wrap; background: #f7f7f7; padding: 8px; border-radius: 8px; border: 1px solid #ddd; }
   </style>
 </head>
 <body>
-  <header>
+  <h1>FP3 クイズ（CSV：Choice1=正解 / Answer列なし）</h1>
+
+  <div class="box">
     <div class="row">
-      <div class="grow">
-        <div id="appTitle" style="font-weight:800;">勉強アプリ</div>
-        <div class="muted" id="statusText">起動中…</div>
-      </div>
+      <input id="csvFile" type="file" accept=".csv,text/csv" />
+      <button id="btnLoadFile">ファイル読込</button>
+      <button id="btnLoadPaste">貼り付け読込</button>
+      <button id="btnClear">クリア</button>
+    </div>
+    <div class="small" style="margin-top:6px;">
+      ヘッダーは必ず：<b>ID,Category,Question,Choice1,Choice2,Choice3,Choice4,Explanation</b>
+    </div>
+    <div style="margin-top:8px;">
+      <textarea id="csvPaste" placeholder="ここにCSVを貼り付けてもOK"></textarea>
+    </div>
+
+    <div id="validationBox" style="margin-top:10px;">
       <div class="row">
-        <button class="btn" id="btnRestart" type="button">最初から</button>
-        <button class="btn" id="btnChangeSource" type="button">データソース変更</button>
+        <span id="validationResult" class="pill">未読み込み</span>
+        <span id="summary" class="stat"></span>
       </div>
-    </div>
-
-    <div class="hr"></div>
-
-    <div class="row">
-      <span class="pill" id="progressPill">- / -</span>
-      <span class="pill" id="sourcePill">接続先: -</span>
-      <span class="pill" id="countPill">件数: -</span>
-      <span class="pill" id="timePill">経過: 0s</span>
-    </div>
-  </header>
-
-  <main>
-    <div class="card" id="cardQuiz">
-      <div class="q-title" id="questionText">-</div>
-      <div class="muted" id="questionSub">-</div>
-
-      <div class="choices" id="choicesArea"></div>
-
-      <div id="judgeArea" class="judge hidden">
-        <h3 id="judgeTitle">-</h3>
-        <div class="small" id="judgeBody"></div>
-        <div class="row" style="margin-top:10px;">
-          <button class="btn primary" id="btnNext" type="button">次へ</button>
-        </div>
-      </div>
-    </div>
-
-    <div class="card hidden" id="cardResult" style="margin-top:12px;">
-      <div class="q-title">結果</div>
-      <div id="resultText" style="white-space:pre-wrap;"></div>
-      <div class="row" style="margin-top:10px;">
-        <button class="btn primary" id="btnResultRestart" type="button">もう一度</button>
-      </div>
-    </div>
-  </main>
-
-  <footer>
-    <div class="footerBox">
-      <div><b>接続先情報</b></div>
-      <div id="footerLine1">接続先: -</div>
-      <div id="footerLine2">Webルート: -</div>
-      <div id="footerLine3">API: -</div>
-      <div id="footerLine4">最終読込: - / 件数: -</div>
-    </div>
-  </footer>
-
-  <div class="modalWrap hidden" id="modalWrap">
-    <div class="backdrop" id="modalBackdrop"></div>
-    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
-      <h2 id="modalTitle">データソース選択</h2>
-      <p id="modalMsg">SharePointに接続できません。\nCSVを選択しますか？</p>
-
-      <div class="modalActions">
-        <button class="btn" id="btnModalRetrySP" type="button">SharePointを再試行</button>
-        <button class="btn primary" id="btnModalPickCSV" type="button">CSVを選択</button>
-        <button class="btn" id="btnModalClose" type="button">閉じる</button>
-      </div>
-
-      <input class="hidden" id="fileCsv" type="file" accept=".csv,text/csv">
-      <div class="muted" style="margin-top:10px;">
-        ※ CSVは「Question, Choice1..4, Answer, Explanation」の列を推奨（ヘッダ揺れもある程度吸収）
+      <div style="margin-top:8px;">
+        <pre id="validationLog"></pre>
       </div>
     </div>
   </div>
 
-  <!-- JSは js/ 配下 -->
-  <script src="./js/util.js"></script>
-  <script src="./js/state.js"></script>
-  <script src="./js/sp_base.js"></script>
-  <script src="./js/sp_api.js"></script>
-  <script src="./js/sp_questions.js"></script>
-  <script src="./js/csv_loader.js"></script>
-  <script src="./js/engine.js"></script>
-  <script src="./js/render.js"></script>
-  <script src="./js/app.js"></script>
+  <div class="box">
+    <div class="row">
+      <label class="pill">出題数
+        <input id="totalCount" type="number" min="1" max="500" value="40" style="width:70px;margin-left:6px;">
+      </label>
+      <label class="pill">
+        <input id="balanced" type="checkbox" checked>
+        カテゴリーをバランスよく（ラウンドロビン）
+      </label>
+      <button id="btnStart" disabled>開始</button>
+    </div>
+    <div class="small" style="margin-top:6px;">
+      「バランスよく」は、カテゴリごとに偏らないよう順番に交互出題します。
+    </div>
+  </div>
+
+  <div id="quizBox" class="box hidden">
+    <div class="row" style="justify-content:space-between;">
+      <div>
+        <span id="qMeta" class="pill"></span>
+        <span id="qProgress" class="pill"></span>
+      </div>
+      <div class="pill">正解数: <span id="score">0</span></div>
+    </div>
+
+    <div id="qText" class="question"></div>
+
+    <div id="choices" class="choices"></div>
+
+    <div id="judgeBox" class="hidden" style="margin-top:10px;">
+      <div id="judgeText" class="pill"></div>
+      <div style="margin-top:8px;">
+        <div class="small">解説（CSVのExplanation）</div>
+        <pre id="explain"></pre>
+      </div>
+    </div>
+
+    <div class="row" style="margin-top:10px;">
+      <button id="btnNext" disabled>次へ</button>
+      <button id="btnEnd">終了</button>
+    </div>
+  </div>
+
+  <script src="./quiz.js"></script>
 </body>
 </html>
