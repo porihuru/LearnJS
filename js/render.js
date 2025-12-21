@@ -1,126 +1,121 @@
-// JST: 2025-12-19 06:37:29 / render.js
+// render.js
+// 2025-12-21 JST
 (function (global) {
   "use strict";
 
-  var Render = {};
+  function setValidationBadge(ok, summaryText) {
+    var badge = document.getElementById("validationBadge");
+    var summary = document.getElementById("summary");
+    var log = document.getElementById("validationLog");
 
-  function el(id) { return document.getElementById(id); }
-
-  Render.setStatus = function (text) {
-    el("statusText").textContent = text || "";
-  };
-
-  Render.updateFooter = function () {
-    var S = global.AppState;
-    var base = global.SP_BASE;
-
-    el("footerLine1").textContent = "接続先: " + (S.dataSource.label || "-");
-    el("footerLine2").textContent = "Webルート: " + (window.location.origin + base.webRoot);
-    el("footerLine3").textContent = "API: " + (window.location.origin + base.api);
-    el("footerLine4").textContent = "最終読込: " + (S.lastLoadedAt || "-") + " / 件数: " + (S.total || 0);
-  };
-
-  Render.updatePills = function () {
-    var S = global.AppState;
-    el("progressPill").textContent = (S.current ? (S.index + 1) : S.total) + " / " + (S.total || "-");
-    el("sourcePill").textContent = "接続先: " + (S.dataSource.label || "-");
-    el("countPill").textContent = "件数: " + (S.total || 0);
-    el("timePill").textContent = "経過: " + global.Engine.getElapsedSec() + "s";
-  };
-
-  Render.showQuestion = function () {
-    var S = global.AppState;
-
-    el("cardResult").classList.add("hidden");
-    el("cardQuiz").classList.remove("hidden");
-
-    Render.updatePills();
-
-    if (!S.current) {
-      // 終了
-      Render.showResult();
-      return;
+    if (ok === true) {
+      badge.textContent = "検証OK";
+      badge.className = "pill ok";
+    } else if (ok === false) {
+      badge.textContent = "検証NG";
+      badge.className = "pill ng";
+    } else {
+      badge.textContent = "未読み込み";
+      badge.className = "pill";
     }
 
-    el("questionText").textContent = S.current.question || "(問題文が空です)";
-    el("questionSub").textContent = "選択肢: " + S.currentChoices.length + "択（表示順はランダム）";
+    summary.textContent = summaryText || "";
+    return log;
+  }
 
-    // choices render
-    var area = el("choicesArea");
-    area.innerHTML = "";
+  function renderValidation(resultObj) {
+    var log = setValidationBadge(resultObj.ok, resultObj.summary || "");
+    var lines = [];
 
-    for (var i = 0; i < S.currentChoices.length; i++) {
-      (function (choiceObj) {
+    if (resultObj.ok) {
+      lines.push("検証: OK");
+      lines.push("総問題数: " + resultObj.count);
+      lines.push("カテゴリー内訳:");
+      var cats = Object.keys(resultObj.stats).sort();
+      for (var i = 0; i < cats.length; i++) {
+        lines.push("  - " + cats[i] + ": " + resultObj.stats[cats[i]] + "問");
+      }
+      if (resultObj.warnings && resultObj.warnings.length) {
+        lines.push("");
+        lines.push("警告（読み込みは継続）:");
+        for (var w = 0; w < resultObj.warnings.length; w++) lines.push("  * " + resultObj.warnings[w]);
+      }
+    } else {
+      lines.push("検証: NG");
+      lines.push("エラー:");
+      for (var e = 0; e < resultObj.errors.length; e++) lines.push("  * " + resultObj.errors[e]);
+      if (resultObj.warnings && resultObj.warnings.length) {
+        lines.push("");
+        lines.push("警告:");
+        for (var w2 = 0; w2 < resultObj.warnings.length; w2++) lines.push("  * " + resultObj.warnings[w2]);
+      }
+    }
+
+    log.textContent = lines.join("\n");
+  }
+
+  function showQuizBox(show) {
+    var box = document.getElementById("quizBox");
+    if (show) box.classList.remove("hidden");
+    else box.classList.add("hidden");
+  }
+
+  function renderQuestion(q, idx, total, score) {
+    document.getElementById("qMeta").textContent = q.id + " / " + q.category;
+    document.getElementById("qProgress").textContent = (idx + 1) + " / " + total;
+    document.getElementById("score").textContent = String(score);
+    document.getElementById("qText").textContent = q.question;
+
+    var choicesEl = document.getElementById("choices");
+    choicesEl.innerHTML = "";
+
+    for (var i = 0; i < q.choices.length; i++) {
+      (function (choiceIndex) {
         var btn = document.createElement("button");
-        btn.className = "choice";
         btn.type = "button";
-        btn.textContent = choiceObj.text;
-        btn.onclick = function () {
-          Render.onChoiceClick(choiceObj);
-        };
-        area.appendChild(btn);
-      })(S.currentChoices[i]);
+        btn.className = "choiceBtn";
+        btn.textContent = (choiceIndex + 1) + ". " + q.choices[choiceIndex];
+        btn.addEventListener("click", function () {
+          global.App.onChoose(choiceIndex);
+        });
+        choicesEl.appendChild(btn);
+      })(i);
     }
 
-    // judge hidden
-    var j = el("judgeArea");
-    j.className = "judge hidden";
-    el("judgeTitle").textContent = "";
-    el("judgeBody").textContent = "";
-  };
+    // judge area reset
+    document.getElementById("judgeBox").classList.add("hidden");
+    document.getElementById("judgeBadge").textContent = "";
+    document.getElementById("judgeBadge").className = "pill";
+    document.getElementById("explain").textContent = "";
+    document.getElementById("btnNext").disabled = true;
+  }
 
-  Render.lockChoices = function () {
-    var area = el("choicesArea");
-    var btns = area.getElementsByTagName("button");
+  function renderJudge(isCorrect, correctIndex, selectedIndex, explanation) {
+    var judgeBox = document.getElementById("judgeBox");
+    var badge = document.getElementById("judgeBadge");
+    var explain = document.getElementById("explain");
+    var choicesEl = document.getElementById("choices");
+    var btns = choicesEl.querySelectorAll("button");
+
     for (var i = 0; i < btns.length; i++) btns[i].disabled = true;
+
+    judgeBox.classList.remove("hidden");
+    badge.textContent = isCorrect ? "正解" : "不正解";
+    badge.className = "pill " + (isCorrect ? "ok" : "ng");
+    explain.textContent = explanation;
+
+    for (var j = 0; j < btns.length; j++) {
+      if (j === correctIndex) btns[j].classList.add("correct");
+      if (!isCorrect && j === selectedIndex) btns[j].classList.add("wrong");
+    }
+
+    document.getElementById("btnNext").disabled = false;
+  }
+
+  global.Render = {
+    renderValidation: renderValidation,
+    showQuizBox: showQuizBox,
+    renderQuestion: renderQuestion,
+    renderJudge: renderJudge
   };
-
-  Render.showJudge = function (ok, correctAnswer, explain) {
-    var j = el("judgeArea");
-    j.className = "judge " + (ok ? "ok" : "ng");
-
-    el("judgeTitle").textContent = ok ? "正解！" : "不正解";
-    var body = "";
-    body += "正解: " + (correctAnswer || "-") + "\n";
-    body += "\n【解説】\n" + (explain || "(解説なし)");
-    el("judgeBody").textContent = body;
-
-    j.classList.remove("hidden");
-    Render.updatePills();
-  };
-
-  Render.showResult = function () {
-    var S = global.AppState;
-
-    el("cardQuiz").classList.add("hidden");
-    el("cardResult").classList.remove("hidden");
-
-    var sec = global.Engine.getElapsedSec();
-    var rate = (S.total ? Math.round((S.correct / S.total) * 100) : 0);
-
-    el("resultText").textContent =
-      "正解数: " + S.correct + " / " + S.total + "\n"
-      + "正答率: " + rate + "%\n"
-      + "所要時間: " + sec + "秒\n"
-      + "\n接続先: " + (S.dataSource.label || "-");
-
-    Render.updatePills();
-  };
-
-  Render.showModal = function (title, msg) {
-    el("modalTitle").textContent = title || "データソース選択";
-    el("modalMsg").textContent = msg || "";
-    el("modalWrap").classList.remove("hidden");
-  };
-
-  Render.hideModal = function () {
-    el("modalWrap").classList.add("hidden");
-  };
-
-  // event hooks (set by app.js)
-  Render.onChoiceClick = function () {};
-  Render.onTick = function () { Render.updatePills(); };
-
-  global.Render = Render;
-
 })(window);
