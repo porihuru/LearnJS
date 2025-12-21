@@ -1,200 +1,193 @@
-// JST: 2025-12-20 21:10:00 / js/app.js
+// app.js
+// 2025-12-21 JST
 (function (global) {
   "use strict";
 
-  function el(id) { return document.getElementById(id); }
-
-  function setDataSource(type, label, detail) {
-    var S = global.AppState;
-    S.dataSource = { type: type, label: label, detail: detail };
+  function setStartEnabled(enabled) {
+    document.getElementById("btnStart").disabled = !enabled;
   }
 
-  function markLoaded() {
-    var S = global.AppState;
-    S.lastLoadedAt = global.Util.formatJstLike(new Date());
-    global.Render.updateFooter();
-    global.Render.updatePills();
-    global.Render.setStatus("読込完了（" + (S.total || 0) + "件）");
+  function applyValidationResult(ok, detail) {
+    var st = global.AppState.validation;
+    st.ok = ok;
+    st.errors = detail.errors || [];
+    st.warnings = detail.warnings || [];
+    st.summary = detail.summary || "";
+
+    if (ok) {
+      global.AppState.questions = detail.questions;
+      global.AppState.categoryStats = detail.stats;
+      setStartEnabled(global.AppState.questions.length > 0);
+    } else {
+      global.AppState.questions = [];
+      global.AppState.categoryStats = {};
+      setStartEnabled(false);
+    }
+
+    global.Render.renderValidation({
+      ok: ok,
+      summary: st.summary,
+      errors: st.errors,
+      warnings: st.warnings,
+      count: (detail.questions || []).length,
+      stats: detail.stats || {}
+    });
   }
 
-  function isListMissingError(req) {
-    if (!req || typeof req !== "object") return false;
-    if (req.status === 404) return true;
-
-    var t = String(req.responseText || "").toLowerCase();
-    if (t.indexOf("does not exist") >= 0) return true;
-    if (t.indexOf("list") >= 0 && t.indexOf("exist") >= 0) return true;
-    if (t.indexOf("リスト") >= 0 && (t.indexOf("存在") >= 0 || t.indexOf("見つか") >= 0)) return true;
-    return false;
+  function loadCsvText(csvText, label) {
+    try {
+      var built = global.CsvLoader.validateAndBuild(csvText);
+      applyValidationResult(true, {
+        questions: built.questions,
+        stats: built.stats,
+        warnings: built.warnings,
+        summary: (label || "読み込み") + "：OK（" + built.questions.length + "問）"
+      });
+    } catch (e) {
+      var d = (e && e._detail) ? e._detail : null;
+      applyValidationResult(false, {
+        questions: [],
+        stats: {},
+        warnings: d ? d.warnings : [],
+        errors: d ? d.errors : [String(e && e.message ? e.message : e)],
+        summary: (label || "読み込み") + "：NG"
+      });
+    }
   }
 
-  function openCsvPickerWithMessage(msg) {
-    global.Render.setStatus("CSV選択が必要です");
-    global.Render.showModal("CSVを選択してください", msg || "CSVを選択して開始してください。");
-  }
+  function autoLoadFallback() {
+    applyValidationResult(false, { errors: [], warnings: [], summary: "フォールバック読込中..." });
 
-  function tryLoadFromCsvFallbackUrl(onOk, onErr) {
-    var fb = global.CSV_FALLBACK || {};
-    if (!fb.enabled || !fb.url) { onErr("CSVフォールバック未設定"); return; }
-
-    global.Render.setStatus("SharePointリスト無し → CSVへ自動接続中…");
-    setDataSource("csv", "CSV（自動）『" + fb.url + "』", fb.url);
-
-    global.CsvLoader.loadUrl(fb.url, function (rawList) {
-      // ★Engine側で正規化する（ここでnormalizeしない）★
-      global.Engine.setQuestions(rawList);
-
-      if (!global.AppState.total) {
-        onErr("CSVは読めましたが、有効な問題（2択以上）が0件です。");
+    global.CsvLoader.loadFromUrl(global.AppState.config.fallbackCsvUrl, function (err, text) {
+      if (err) {
+        applyValidationResult(false, {
+          errors: ["フォールバックCSVを自動読込できませんでした。", String(err.message || err)],
+          warnings: [],
+          summary: "フォールバック読込：NG"
+        });
         return;
       }
-
-      markLoaded();
-      global.Render.hideModal();
-      global.Render.showQuestion();
-      onOk();
-    }, function (msg) {
-      onErr(msg);
+      loadCsvText(text, "フォールバック読込");
     });
   }
 
-  function tryLoadFromSharePoint() {
-    global.Render.setStatus("SharePointに接続中…");
-    setDataSource("sharepoint", "SharePoint リスト『" + global.SP_CONFIG.listTitle + "』", "");
-
-    global.SpApi.tryPing(function () {
-      global.Render.setStatus("SharePointから問題を取得中…");
-      global.SpQuestions.loadAll(function (rawList) {
-        // ★Engine側で正規化する（ここでnormalizeしない）★
-        global.Engine.setQuestions(rawList);
-
-        if (!global.AppState.total) {
-          openCsvPickerWithMessage("SharePointから問題を取得しましたが、有効な問題（2択以上）が0件です。\nCSVで開始できます。");
-          return;
-        }
-
-        markLoaded();
-        global.Render.hideModal();
-        global.Render.showQuestion();
-      }, function (req) {
-        // リスト無しだけ自動CSVへ
-        if (isListMissingError(req)) {
-          tryLoadFromCsvFallbackUrl(function(){}, function (msg) {
-            openCsvPickerWithMessage(
-              "SharePointリストが見つかりません。\n"
-              + "CSV自動読込も失敗しました。\n\n"
-              + "理由: " + msg + "\n\n"
-              + "手動でCSVを選択してください。"
-            );
-          });
-          return;
-        }
-
-        // それ以外（権限不足など）は手動CSVへ誘導
-        openCsvPickerWithMessage(
-          "SharePointからの取得に失敗しました。\n"
-          + "status: " + (req && req.status ? req.status : "-") + "\n\n"
-          + "CSVで開始できます。"
-        );
-      });
-    }, function (req) {
-      // サイトに繋がらない等 → CSV自動も試す
-      tryLoadFromCsvFallbackUrl(function(){}, function (msg) {
-        openCsvPickerWithMessage(
-          "SharePointに接続できません。\n"
-          + "CSV自動読込も失敗しました。\n\n"
-          + "理由: " + msg + "\n\n"
-          + "手動でCSVを選択してください。"
-        );
-      });
-    });
-  }
-
-  function loadFromCsvFile(file) {
-    global.Render.setStatus("CSV読込中…");
-    setDataSource("csv", "CSV『" + (file && file.name ? file.name : "選択ファイル") + "』", "");
-
-    global.CsvLoader.loadFile(file, function (rawList) {
-      // ★Engine側で正規化する（ここでnormalizeしない）★
-      global.Engine.setQuestions(rawList);
-
-      if (!global.AppState.total) {
-        openCsvPickerWithMessage("CSVに有効な問題（2択以上）がありません。");
+  function loadSample() {
+    applyValidationResult(false, { errors: [], warnings: [], summary: "サンプル読込中..." });
+    global.CsvLoader.loadFromUrl(global.AppState.config.sampleCsvUrl, function (err, text) {
+      if (err) {
+        applyValidationResult(false, {
+          errors: ["サンプルCSVを読込できませんでした。", String(err.message || err)],
+          warnings: [],
+          summary: "サンプル読込：NG"
+        });
         return;
       }
-
-      markLoaded();
-      global.Render.hideModal();
-      global.Render.showQuestion();
-    }, function (errMsg) {
-      openCsvPickerWithMessage("CSV読込に失敗しました。\n" + String(errMsg || ""));
+      loadCsvText(text, "サンプル読込");
     });
   }
 
-  function bindEvents() {
-    global.Render.onChoiceClick = function (choiceObj) {
-      global.Render.lockChoices();
-      var res = global.Engine.answer(choiceObj);
-      if (res && res.ignored) return;
-      global.Render.showJudge(!!res.ok, res.correctAnswer, res.explain);
-    };
+  function startQuiz() {
+    var total = parseInt(document.getElementById("totalCount").value, 10);
+    if (!isFinite(total) || total <= 0) total = 40;
 
-    el("btnNext").onclick = function () {
-      global.Engine.next();
-      global.Render.showQuestion();
-    };
+    var balanced = !!document.getElementById("balanced").checked;
 
-    el("btnRestart").onclick = function () {
-      global.Engine.restart();
-      global.Render.showQuestion();
-      global.Render.setStatus("やり直し");
-    };
+    global.AppState.quiz.set = global.Engine.buildQuizSet(global.AppState.questions, total, balanced);
+    global.AppState.quiz.idx = 0;
+    global.AppState.quiz.score = 0;
 
-    el("btnResultRestart").onclick = function () {
-      global.Engine.restart();
-      global.Render.showQuestion();
-      global.Render.setStatus("やり直し");
-    };
-
-    el("btnChangeSource").onclick = function () {
-      global.Render.showModal("データソース変更", "CSVを選択するか、SharePointを再読込してください。");
-    };
-
-    // modal
-    el("btnModalRetrySP").onclick = function () { tryLoadFromSharePoint(); };
-    el("btnModalPickCSV").onclick = function () {
-      el("fileCsv").value = "";
-      el("fileCsv").click();
-    };
-    el("btnModalClose").onclick = function () { global.Render.hideModal(); };
-    el("modalBackdrop").onclick = function () { global.Render.hideModal(); };
-
-    el("fileCsv").onchange = function () {
-      var files = el("fileCsv").files;
-      if (!files || files.length === 0) return;
-      loadFromCsvFile(files[0]);
-    };
+    global.Render.showQuizBox(true);
+    renderCurrent();
   }
 
-  function startTicker() {
-    if (global.AppState.timerId) clearInterval(global.AppState.timerId);
-    global.AppState.timerId = setInterval(function () {
-      global.Render.onTick();
-    }, 1000);
+  function renderCurrent() {
+    var qset = global.AppState.quiz.set;
+    var idx = global.AppState.quiz.idx;
+
+    if (idx >= qset.length) {
+      global.Render.showQuizBox(false);
+      applyValidationResult(true, {
+        questions: global.AppState.questions,
+        stats: global.AppState.categoryStats,
+        warnings: global.AppState.validation.warnings,
+        summary: "終了：正解数 " + global.AppState.quiz.score + " / " + qset.length
+      });
+      return;
+    }
+
+    global.Render.renderQuestion(qset[idx], idx, qset.length, global.AppState.quiz.score);
   }
 
-  function init() {
-    global.SP_BASE.init();
-    global.Render.updateFooter();
-    bindEvents();
-    startTicker();
-    tryLoadFromSharePoint();
+  function choose(choiceIndex) {
+    var q = global.AppState.quiz.set[global.AppState.quiz.idx];
+    var isCorrect = (choiceIndex === q.correctIndex);
+    if (isCorrect) global.AppState.quiz.score++;
+
+    global.Render.renderJudge(isCorrect, q.correctIndex, choiceIndex, q.explanation);
   }
 
-  if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", init);
-  } else {
-    init();
+  function next() {
+    global.AppState.quiz.idx++;
+    renderCurrent();
   }
+
+  function end() {
+    global.Render.showQuizBox(false);
+    applyValidationResult(true, {
+      questions: global.AppState.questions,
+      stats: global.AppState.categoryStats,
+      warnings: global.AppState.validation.warnings,
+      summary: "終了：正解数 " + global.AppState.quiz.score + " / " + global.AppState.quiz.set.length
+    });
+  }
+
+  function wireUI() {
+    document.getElementById("btnAutoLoad").addEventListener("click", autoLoadFallback);
+    document.getElementById("btnLoadSample").addEventListener("click", loadSample);
+
+    document.getElementById("btnLoadFile").addEventListener("click", function () {
+      var inp = document.getElementById("csvFile");
+      if (!inp.files || inp.files.length === 0) {
+        applyValidationResult(false, { errors: ["ファイルが選択されていません。"], warnings: [], summary: "ファイル読込：NG" });
+        return;
+      }
+      global.CsvLoader.loadFromFile(inp.files[0], function (err, text) {
+        if (err) {
+          applyValidationResult(false, { errors: [String(err.message || err)], warnings: [], summary: "ファイル読込：NG" });
+          return;
+        }
+        loadCsvText(text, "ファイル読込");
+      });
+    });
+
+    document.getElementById("btnLoadPaste").addEventListener("click", function () {
+      var text = document.getElementById("csvPaste").value || "";
+      loadCsvText(text, "貼り付け読込");
+    });
+
+    document.getElementById("btnClear").addEventListener("click", function () {
+      document.getElementById("csvPaste").value = "";
+      document.getElementById("csvFile").value = "";
+      global.AppState.questions = [];
+      setStartEnabled(false);
+      global.Render.renderValidation({ ok: null, summary: "クリアしました。", errors: [], warnings: [], count: 0, stats: {} });
+    });
+
+    document.getElementById("btnStart").addEventListener("click", startQuiz);
+    document.getElementById("btnNext").addEventListener("click", next);
+    document.getElementById("btnEnd").addEventListener("click", end);
+  }
+
+  global.App = {
+    init: function () {
+      wireUI();
+      // 起動時にフォールバックを自動読込
+      autoLoadFallback();
+    },
+    onChoose: function (choiceIndex) { choose(choiceIndex); }
+  };
+
+  // boot
+  global.App.init();
 
 })(window);
