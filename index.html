@@ -1,4 +1,4 @@
-<!-- index.html / 作成日時(JST): 2025-12-21 16:24:00 -->
+<!-- index.html / 作成日時(JST): 2025-12-22 14:10:00 -->
 <!DOCTYPE html>
 <html lang="ja">
 <head>
@@ -10,7 +10,6 @@
 </head>
 
 <body>
-  <!-- Header / Toolbar -->
   <header class="app-header" role="banner">
     <div class="app-header__row">
       <div class="app-brand">
@@ -27,7 +26,6 @@
 
     <div class="toolbar" role="navigation" aria-label="操作">
       <div class="toolbar__left">
-        <!-- カテゴリ -->
         <label class="field field--inline" for="categorySelect">
           <span class="field__label">カテゴリ</span>
           <select id="categorySelect" class="field__control">
@@ -35,16 +33,13 @@
           </select>
         </label>
 
-        <!-- 開始UI（ブロックごとに外枠） -->
         <div class="start-controls" aria-label="開始設定">
-          <!-- ランダム開始 -->
           <div class="start-block" aria-label="ランダム開始">
             <input id="randCount" class="field__control field__control--num" type="number" inputmode="numeric" min="1" value="10" />
             <span class="inline-text">問</span>
             <button id="btnRandomStart" class="btn" type="button">ランダムスタート</button>
           </div>
 
-          <!-- ID指定開始 -->
           <div class="start-block" aria-label="ID指定開始">
             <span class="inline-text inline-text--strong">ID</span>
             <input id="startId" class="field__control field__control--num" type="number" inputmode="numeric" min="1" value="1" />
@@ -63,7 +58,6 @@
     </div>
   </header>
 
-  <!-- Main（一覧は削除：出題パネルのみ） -->
   <main class="app-main" role="main">
     <div class="layout layout--single">
       <section class="panel panel--quiz panel--full" aria-label="出題画面">
@@ -80,7 +74,6 @@
         </div>
 
         <div class="panel__body">
-          <!-- Top info row -->
           <div class="quiz-top">
             <div class="kv">
               <div class="kv__k">ID</div>
@@ -96,19 +89,14 @@
             </div>
           </div>
 
-          <!-- Question -->
           <article class="quiz-card" aria-label="問題">
             <div class="quiz-card__label">問題</div>
             <div class="quiz-card__question" id="quizQuestion">（未読込）</div>
           </article>
 
-          <!-- Choices -->
           <section class="choices" aria-label="選択肢">
             <div class="choices__label">選択肢（毎回ランダム表示：機能は後で追加）</div>
-
-            <div class="choices__grid" id="choicesGrid">
-              <!-- render.js が描画 -->
-            </div>
+            <div class="choices__grid" id="choicesGrid"></div>
 
             <div class="choices__actions">
               <button id="btnShowAnswer" class="btn btn--ghost" type="button" disabled>解説を表示</button>
@@ -116,46 +104,43 @@
             </div>
           </section>
 
-          <!-- Explanation -->
           <details class="explain" id="explainBox">
             <summary class="explain__summary">解説</summary>
             <div class="explain__body" id="quizExplanation">（未読込）</div>
           </details>
 
-          <!-- Bottom controls -->
           <div class="quiz-controls" aria-label="操作">
             <button id="btnPrev" class="btn btn--ghost" type="button" disabled>前へ</button>
             <button id="btnNext" class="btn" type="button" disabled>次へ</button>
           </div>
 
-          <!-- Message / Errors -->
+          <!-- ここに接続ログが蓄積表示されます -->
           <div class="notice" id="noticeBox" role="status" aria-live="polite">
-            <div class="notice__title" id="noticeTitle">状態</div>
-            <div class="notice__body" id="noticeBody">ここにメッセージ（読込結果、エラーなど）を表示します。</div>
+            <div class="notice__title" id="noticeTitle">ログ</div>
+            <div class="notice__body" id="noticeBody">起動時に SharePoint（問題01）へ接続を試行し、失敗時はCSVへ切替えます。</div>
           </div>
+
         </div>
       </section>
     </div>
   </main>
 
-  <!-- Footer -->
   <footer class="app-footer" role="contentinfo">
     <div class="footer-row">
-      <div class="footer-item">
-        データ：<span id="footerDataSource">---</span>
-      </div>
-      <div class="footer-item">
-        件数：<span id="footerCount">0</span>
-      </div>
-      <div class="footer-item">
-        最終読込：<span id="footerLoadedAt">---</span>
-      </div>
+      <div class="footer-item">データ：<span id="footerDataSource">---</span></div>
+      <div class="footer-item">件数：<span id="footerCount">0</span></div>
+      <div class="footer-item">最終読込：<span id="footerLoadedAt">---</span></div>
     </div>
   </footer>
 
-  <!-- JS（後で機能追加） -->
+  <!-- JS（順番重要） -->
   <script src="./js/util.js"></script>
   <script src="./js/state.js"></script>
+
+  <script src="./js/sp_base.js"></script>
+  <script src="./js/sp_api.js"></script>
+  <script src="./js/sp_questions.js"></script>
+
   <script src="./js/csv_loader.js"></script>
   <script src="./js/engine.js"></script>
   <script src="./js/render.js"></script>
