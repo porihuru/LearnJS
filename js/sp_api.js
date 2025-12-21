@@ -1,86 +1,94 @@
-// JST: 2025-12-19 06:37:29 / sp_api.js
+// sp_api.js / 作成日時(JST): 2025-12-22 14:10:00
 (function (global) {
   "use strict";
 
-  var SpApi = {};
-
   function xhr(method, url, headers, body, onOk, onErr) {
-    try {
-      var req = new XMLHttpRequest();
-      req.open(method, url, true);
-      req.onreadystatechange = function () {
-        if (req.readyState !== 4) return;
-        var ok = (req.status >= 200 && req.status < 300);
-        if (ok) onOk(req);
-        else onErr(req);
-      };
-      if (headers) {
-        for (var k in headers) {
-          if (headers.hasOwnProperty(k)) req.setRequestHeader(k, headers[k]);
-        }
+    var x = new XMLHttpRequest();
+    x.open(method, url, true);
+
+    // same-origin想定。IEモードでも安定させる
+    try { x.withCredentials = true; } catch (e) {}
+
+    if (headers) {
+      for (var k in headers) {
+        if (headers.hasOwnProperty(k)) x.setRequestHeader(k, headers[k]);
       }
-      req.send(body || null);
-    } catch (e) {
-      onErr({ status: 0, responseText: String(e) });
+    }
+
+    x.onreadystatechange = function () {
+      if (x.readyState !== 4) return;
+
+      if (x.status >= 200 && x.status < 300) {
+        onOk(x);
+        return;
+      }
+
+      var ct = "";
+      try { ct = x.getResponseHeader("Content-Type") || ""; } catch (e2) {}
+      var snippet = "";
+      try { snippet = (x.responseText || "").slice(0, 300); } catch (e3) {}
+
+      onErr(
+        "HTTP失敗\n" +
+        "method: " + method + "\n" +
+        "url: " + url + "\n" +
+        "status: " + x.status + " " + (x.statusText || "") + "\n" +
+        (ct ? ("content-type: " + ct + "\n") : "") +
+        (snippet ? ("---- snippet ----\n" + snippet) : "")
+      );
+    };
+
+    try {
+      x.send(body || null);
+    } catch (sendErr) {
+      onErr("XHR send例外: " + String(sendErr) + "\nurl: " + url);
     }
   }
 
-  SpApi.getJson = function (url, onOk, onErr) {
+  function parseJsonVerbose(text) {
+    var obj = JSON.parse(text);
+    // SharePoint古め：odata=verbose
+    if (obj && obj.d) return obj.d;
+    return obj;
+  }
+
+  function getContextInfo(onOk, onErr) {
+    var url = SP_BASE.api + "/contextinfo";
+    xhr("POST", url, {
+      "Accept": "application/json;odata=verbose"
+    }, "", function (x) {
+      var d = parseJsonVerbose(x.responseText);
+      var digest = d.GetContextWebInformation.FormDigestValue;
+      onOk(digest);
+    }, onErr);
+  }
+
+  function getListEntityType(listTitle, onOk, onErr) {
+    var url = SP_BASE.api + "/web/lists/getbytitle('" + encodeURIComponent(listTitle) + "')?$select=ListItemEntityTypeFullName";
     xhr("GET", url, {
       "Accept": "application/json;odata=verbose"
-    }, null, function (req) {
-      var data = null;
-      try { data = JSON.parse(req.responseText); } catch (e) {}
-      onOk(data, req);
-    }, function (req) {
-      onErr(req);
-    });
+    }, null, function (x) {
+      var d = parseJsonVerbose(x.responseText);
+      onOk(d.ListItemEntityTypeFullName);
+    }, onErr);
+  }
+
+  function getItems(listTitle, selectCsv, top, onOk, onErr) {
+    var t = top || 5000;
+    var url = SP_BASE.api + "/web/lists/getbytitle('" + encodeURIComponent(listTitle) + "')/items?$top=" + t + "&$select=" + encodeURIComponent(selectCsv);
+    xhr("GET", url, {
+      "Accept": "application/json;odata=verbose"
+    }, null, function (x) {
+      var d = parseJsonVerbose(x.responseText);
+      var results = (d && d.results) ? d.results : [];
+      onOk(results);
+    }, onErr);
+  }
+
+  global.SP_API = {
+    xhr: xhr,
+    getContextInfo: getContextInfo,
+    getListEntityType: getListEntityType,
+    getItems: getItems
   };
-
-  SpApi.postJson = function (url, digest, bodyObj, extraHeaders, onOk, onErr) {
-    var headers = {
-      "Accept": "application/json;odata=verbose",
-      "Content-Type": "application/json;odata=verbose"
-    };
-    if (digest) headers["X-RequestDigest"] = digest;
-    if (extraHeaders) {
-      for (var k in extraHeaders) if (extraHeaders.hasOwnProperty(k)) headers[k] = extraHeaders[k];
-    }
-    xhr("POST", url, headers, JSON.stringify(bodyObj || {}), function (req) {
-      var data = null;
-      try { data = JSON.parse(req.responseText); } catch (e) {}
-      onOk(data, req);
-    }, function (req) {
-      onErr(req);
-    });
-  };
-
-  SpApi.getContextInfo = function (onOk, onErr) {
-    var url = global.SP_BASE.api + "/contextinfo";
-    xhr("POST", url, { "Accept": "application/json;odata=verbose" }, null, function (req) {
-      var data = null;
-      try { data = JSON.parse(req.responseText); } catch (e) {}
-      try {
-        var digest = data.d.GetContextWebInformation.FormDigestValue;
-        onOk(digest);
-      } catch (e2) {
-        onErr(req);
-      }
-    }, function (req) {
-      onErr(req);
-    });
-  };
-
-  SpApi.tryPing = function (onOk, onErr) {
-    var url = global.SP_BASE.api + "/web?$select=Title";
-    SpApi.getJson(url, function (data) {
-      // 成功していれば data.d.Title があるはず
-      onOk(data);
-    }, function (req) {
-      onErr(req);
-    });
-  };
-
-  global.SpApi = SpApi;
-
 })(window);
