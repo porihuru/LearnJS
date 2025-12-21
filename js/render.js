@@ -1,121 +1,144 @@
-// render.js
-// 2025-12-21 JST
+// render.js / 作成日時(JST): 2025-12-21 15:40:00
 (function (global) {
   "use strict";
 
-  function setValidationBadge(ok, summaryText) {
-    var badge = document.getElementById("validationBadge");
-    var summary = document.getElementById("summary");
-    var log = document.getElementById("validationLog");
+  function renderStatus() {
+    Util.setText(Util.qs("#statusDataSource"), AppState.dataSource);
+    Util.setText(Util.qs("#statusCount"), AppState.questions.length);
+    Util.setText(Util.qs("#statusLoadedAt"), AppState.loadedAt);
 
-    if (ok === true) {
-      badge.textContent = "検証OK";
-      badge.className = "pill ok";
-    } else if (ok === false) {
-      badge.textContent = "検証NG";
-      badge.className = "pill ng";
-    } else {
-      badge.textContent = "未読み込み";
-      badge.className = "pill";
+    Util.setText(Util.qs("#footerDataSource"), AppState.dataSource);
+    Util.setText(Util.qs("#footerCount"), AppState.questions.length);
+    Util.setText(Util.qs("#footerLoadedAt"), AppState.loadedAt);
+  }
+
+  function renderCategorySelect() {
+    var sel = Util.qs("#categorySelect");
+    if (!sel) return;
+
+    // 既存オプション初期化（先頭の「すべて」は残す）
+    while (sel.options.length > 1) sel.remove(1);
+
+    for (var i = 0; i < AppState.categories.length; i++) {
+      var opt = document.createElement("option");
+      opt.value = AppState.categories[i];
+      opt.text = AppState.categories[i];
+      sel.appendChild(opt);
     }
 
-    summary.textContent = summaryText || "";
-    return log;
+    sel.value = AppState.selectedCategory || "";
   }
 
-  function renderValidation(resultObj) {
-    var log = setValidationBadge(resultObj.ok, resultObj.summary || "");
-    var lines = [];
+  function renderList() {
+    var list = Util.qs("#questionList");
+    var empty = Util.qs("#questionListEmpty");
+    if (!list) return;
 
-    if (resultObj.ok) {
-      lines.push("検証: OK");
-      lines.push("総問題数: " + resultObj.count);
-      lines.push("カテゴリー内訳:");
-      var cats = Object.keys(resultObj.stats).sort();
-      for (var i = 0; i < cats.length; i++) {
-        lines.push("  - " + cats[i] + ": " + resultObj.stats[cats[i]] + "問");
+    // クリア（空メッセージは後で制御）
+    list.innerHTML = "";
+
+    if (!AppState.visible || AppState.visible.length === 0) {
+      if (empty) {
+        empty.style.display = "block";
+        list.appendChild(empty);
       }
-      if (resultObj.warnings && resultObj.warnings.length) {
-        lines.push("");
-        lines.push("警告（読み込みは継続）:");
-        for (var w = 0; w < resultObj.warnings.length; w++) lines.push("  * " + resultObj.warnings[w]);
-      }
-    } else {
-      lines.push("検証: NG");
-      lines.push("エラー:");
-      for (var e = 0; e < resultObj.errors.length; e++) lines.push("  * " + resultObj.errors[e]);
-      if (resultObj.warnings && resultObj.warnings.length) {
-        lines.push("");
-        lines.push("警告:");
-        for (var w2 = 0; w2 < resultObj.warnings.length; w2++) lines.push("  * " + resultObj.warnings[w2]);
-      }
+      Util.setText(Util.qs("#listShownCount"), 0);
+      return;
     }
 
-    log.textContent = lines.join("\n");
+    if (empty) empty.style.display = "none";
+
+    for (var i = 0; i < AppState.visible.length; i++) {
+      var q = AppState.visible[i];
+      var row = document.createElement("div");
+      row.className = "q-row" + (i === AppState.selectedIndex ? " q-row--selected" : "");
+      row.setAttribute("data-index", String(i));
+
+      var title = document.createElement("div");
+      title.className = "q-row__title";
+      title.textContent = (q.id ? ("[" + q.id + "] ") : "") + q.question;
+
+      var meta = document.createElement("div");
+      meta.className = "q-row__meta";
+      meta.textContent = "カテゴリ: " + (q.category || "-");
+
+      row.appendChild(title);
+      row.appendChild(meta);
+      list.appendChild(row);
+    }
+
+    Util.setText(Util.qs("#listShownCount"), AppState.visible.length);
   }
 
-  function showQuizBox(show) {
-    var box = document.getElementById("quizBox");
-    if (show) box.classList.remove("hidden");
-    else box.classList.add("hidden");
-  }
+  function renderCurrentQuestion() {
+    var total = AppState.visible ? AppState.visible.length : 0;
+    Util.setText(Util.qs("#progressTotal"), total);
 
-  function renderQuestion(q, idx, total, score) {
-    document.getElementById("qMeta").textContent = q.id + " / " + q.category;
-    document.getElementById("qProgress").textContent = (idx + 1) + " / " + total;
-    document.getElementById("score").textContent = String(score);
-    document.getElementById("qText").textContent = q.question;
+    if (!AppState.visible || total === 0) {
+      Util.setText(Util.qs("#progressCurrent"), 0);
+      Util.setText(Util.qs("#quizId"), "-");
+      Util.setText(Util.qs("#quizCategory"), "-");
+      Util.setText(Util.qs("#quizQuestion"), "（データなし）");
+      Util.setText(Util.qs("#quizExplanation"), "（データなし）");
 
-    var choicesEl = document.getElementById("choices");
-    choicesEl.innerHTML = "";
+      var cg = Util.qs("#choicesGrid");
+      if (cg) cg.innerHTML = "";
+      return;
+    }
 
-    for (var i = 0; i < q.choices.length; i++) {
-      (function (choiceIndex) {
+    var idx = AppState.selectedIndex;
+    if (idx < 0) idx = 0;
+    if (idx >= total) idx = total - 1;
+    AppState.selectedIndex = idx;
+
+    var q = AppState.visible[idx];
+
+    Util.setText(Util.qs("#progressCurrent"), idx + 1);
+    Util.setText(Util.qs("#quizId"), q.id || "-");
+    Util.setText(Util.qs("#quizCategory"), q.category || "-");
+    Util.setText(Util.qs("#quizQuestion"), q.question || "");
+    Util.setText(Util.qs("#quizExplanation"), q.explanation || "");
+
+    // choices: 今は並びを固定表示（シャッフル・採点は次フェーズ）
+    var cg2 = Util.qs("#choicesGrid");
+    if (cg2) {
+      cg2.innerHTML = "";
+      var letters = ["A", "B", "C", "D"];
+      for (var i = 0; i < q.choicesRaw.length; i++) {
+        var ch = q.choicesRaw[i];
         var btn = document.createElement("button");
+        btn.className = "choice-btn";
         btn.type = "button";
-        btn.className = "choiceBtn";
-        btn.textContent = (choiceIndex + 1) + ". " + q.choices[choiceIndex];
-        btn.addEventListener("click", function () {
-          global.App.onChoose(choiceIndex);
-        });
-        choicesEl.appendChild(btn);
-      })(i);
+        btn.setAttribute("data-choice-index", String(i));
+        btn.disabled = true; // 機能追加前なので無効
+
+        var mark = document.createElement("span");
+        mark.className = "choice-btn__mark";
+        mark.textContent = letters[i] || "";
+
+        var text = document.createElement("span");
+        text.className = "choice-btn__text";
+        text.textContent = ch.text || "";
+
+        btn.appendChild(mark);
+        btn.appendChild(text);
+        cg2.appendChild(btn);
+      }
     }
 
-    // judge area reset
-    document.getElementById("judgeBox").classList.add("hidden");
-    document.getElementById("judgeBadge").textContent = "";
-    document.getElementById("judgeBadge").className = "pill";
-    document.getElementById("explain").textContent = "";
-    document.getElementById("btnNext").disabled = true;
+    // 前後ボタン：今は未実装なので無効のまま（後で有効化）
   }
 
-  function renderJudge(isCorrect, correctIndex, selectedIndex, explanation) {
-    var judgeBox = document.getElementById("judgeBox");
-    var badge = document.getElementById("judgeBadge");
-    var explain = document.getElementById("explain");
-    var choicesEl = document.getElementById("choices");
-    var btns = choicesEl.querySelectorAll("button");
-
-    for (var i = 0; i < btns.length; i++) btns[i].disabled = true;
-
-    judgeBox.classList.remove("hidden");
-    badge.textContent = isCorrect ? "正解" : "不正解";
-    badge.className = "pill " + (isCorrect ? "ok" : "ng");
-    explain.textContent = explanation;
-
-    for (var j = 0; j < btns.length; j++) {
-      if (j === correctIndex) btns[j].classList.add("correct");
-      if (!isCorrect && j === selectedIndex) btns[j].classList.add("wrong");
-    }
-
-    document.getElementById("btnNext").disabled = false;
+  function showNotice(title, body) {
+    Util.setText(Util.qs("#noticeTitle"), title);
+    Util.setText(Util.qs("#noticeBody"), body);
   }
 
   global.Render = {
-    renderValidation: renderValidation,
-    showQuizBox: showQuizBox,
-    renderQuestion: renderQuestion,
-    renderJudge: renderJudge
+    renderStatus: renderStatus,
+    renderCategorySelect: renderCategorySelect,
+    renderList: renderList,
+    renderCurrentQuestion: renderCurrentQuestion,
+    showNotice: showNotice
   };
 })(window);
