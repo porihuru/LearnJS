@@ -1,4 +1,4 @@
-// render.js / 作成日時(JST): 2025-12-21 15:40:00
+// render.js / 作成日時(JST): 2025-12-22 14:10:00
 (function (global) {
   "use strict";
 
@@ -16,7 +16,6 @@
     var sel = Util.qs("#categorySelect");
     if (!sel) return;
 
-    // 既存オプション初期化（先頭の「すべて」は残す）
     while (sel.options.length > 1) sel.remove(1);
 
     for (var i = 0; i < AppState.categories.length; i++) {
@@ -25,49 +24,7 @@
       opt.text = AppState.categories[i];
       sel.appendChild(opt);
     }
-
     sel.value = AppState.selectedCategory || "";
-  }
-
-  function renderList() {
-    var list = Util.qs("#questionList");
-    var empty = Util.qs("#questionListEmpty");
-    if (!list) return;
-
-    // クリア（空メッセージは後で制御）
-    list.innerHTML = "";
-
-    if (!AppState.visible || AppState.visible.length === 0) {
-      if (empty) {
-        empty.style.display = "block";
-        list.appendChild(empty);
-      }
-      Util.setText(Util.qs("#listShownCount"), 0);
-      return;
-    }
-
-    if (empty) empty.style.display = "none";
-
-    for (var i = 0; i < AppState.visible.length; i++) {
-      var q = AppState.visible[i];
-      var row = document.createElement("div");
-      row.className = "q-row" + (i === AppState.selectedIndex ? " q-row--selected" : "");
-      row.setAttribute("data-index", String(i));
-
-      var title = document.createElement("div");
-      title.className = "q-row__title";
-      title.textContent = (q.id ? ("[" + q.id + "] ") : "") + q.question;
-
-      var meta = document.createElement("div");
-      meta.className = "q-row__meta";
-      meta.textContent = "カテゴリ: " + (q.category || "-");
-
-      row.appendChild(title);
-      row.appendChild(meta);
-      list.appendChild(row);
-    }
-
-    Util.setText(Util.qs("#listShownCount"), AppState.visible.length);
   }
 
   function renderCurrentQuestion() {
@@ -99,7 +56,7 @@
     Util.setText(Util.qs("#quizQuestion"), q.question || "");
     Util.setText(Util.qs("#quizExplanation"), q.explanation || "");
 
-    // choices: 今は並びを固定表示（シャッフル・採点は次フェーズ）
+    // 今は表示だけ（採点/シャッフルは後で追加）
     var cg2 = Util.qs("#choicesGrid");
     if (cg2) {
       cg2.innerHTML = "";
@@ -109,8 +66,7 @@
         var btn = document.createElement("button");
         btn.className = "choice-btn";
         btn.type = "button";
-        btn.setAttribute("data-choice-index", String(i));
-        btn.disabled = true; // 機能追加前なので無効
+        btn.disabled = true;
 
         var mark = document.createElement("span");
         mark.className = "choice-btn__mark";
@@ -125,20 +81,30 @@
         cg2.appendChild(btn);
       }
     }
-
-    // 前後ボタン：今は未実装なので無効のまま（後で有効化）
   }
 
-  function showNotice(title, body) {
-    Util.setText(Util.qs("#noticeTitle"), title);
-    Util.setText(Util.qs("#noticeBody"), body);
+  function clearLog() {
+    AppState.logs = [];
+    flushLog();
+  }
+
+  function log(line) {
+    var ts = Util.nowText();
+    AppState.logs.push("[" + ts + "] " + line);
+    flushLog();
+  }
+
+  function flushLog() {
+    var body = Util.qs("#noticeBody");
+    if (!body) return;
+    body.textContent = (AppState.logs || []).join("\n");
   }
 
   global.Render = {
     renderStatus: renderStatus,
     renderCategorySelect: renderCategorySelect,
-    renderList: renderList,
     renderCurrentQuestion: renderCurrentQuestion,
-    showNotice: showNotice
+    clearLog: clearLog,
+    log: log
   };
 })(window);
