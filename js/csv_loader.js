@@ -1,151 +1,182 @@
-// csv_loader.js
-// 2025-12-21 JST
+// csv_loader.js / 作成日時(JST): 2025-12-21 15:40:00
 (function (global) {
   "use strict";
 
-  var EXPECTED_HEADER = ["ID","Category","Question","Choice1","Choice2","Choice3","Choice4","Explanation"];
-
-  function loadFromUrl(url, cb) {
+  function xhrGetText(url, onOk, onErr) {
     var xhr = new XMLHttpRequest();
     xhr.open("GET", url, true);
     xhr.onreadystatechange = function () {
       if (xhr.readyState !== 4) return;
+
       if (xhr.status >= 200 && xhr.status < 300) {
-        cb(null, xhr.responseText);
+        onOk(xhr.responseText);
       } else {
-        cb(new Error("URL読込失敗: " + url + " (status=" + xhr.status + ")"));
+        onErr("CSV読込失敗: " + url + " (status=" + xhr.status + ")");
       }
     };
-    xhr.onerror = function () { cb(new Error("URL読込失敗: " + url)); };
     xhr.send(null);
   }
 
-  function loadFromFile(file, cb) {
-    var reader = new FileReader();
-    reader.onload = function () { cb(null, String(reader.result || "")); };
-    reader.onerror = function () { cb(new Error("ファイル読込失敗")); };
-    reader.readAsText(file);
-  }
+  // RFC4180寄り：ダブルクォート対応（改行/カンマ/クォート）
+  function parseCSV(text) {
+    if (!text) return [];
 
-  function validateAndBuild(csvText) {
-    var parsed = Util.parseCSV(csvText);
-    if (!parsed || parsed.length === 0) throw new Error("CSVが空です。");
-
-    var header = parsed[0];
-    if (!Util.arrayEquals(header, EXPECTED_HEADER)) {
-      throw new Error("ヘッダー不一致\n期待: " + EXPECTED_HEADER.join(",") + "\n実際: " + header.join(","));
+    // BOM除去
+    if (text.charCodeAt(0) === 0xFEFF) {
+      text = text.slice(1);
     }
 
-    var errors = [];
-    var warnings = [];
+    var rows = [];
+    var row = [];
+    var i = 0;
+    var field = "";
+    var inQuotes = false;
 
-    var seenID = {};
-    var seenQ = {};
+    while (i < text.length) {
+      var c = text.charAt(i);
+
+      if (inQuotes) {
+        if (c === '"') {
+          // "" -> "
+          if (i + 1 < text.length && text.charAt(i + 1) === '"') {
+            field += '"';
+            i += 2;
+            continue;
+          } else {
+            inQuotes = false;
+            i += 1;
+            continue;
+          }
+        } else {
+          field += c;
+          i += 1;
+          continue;
+        }
+      } else {
+        if (c === '"') {
+          inQuotes = true;
+          i += 1;
+          continue;
+        }
+        if (c === ",") {
+          row.push(field);
+          field = "";
+          i += 1;
+          continue;
+        }
+        if (c === "\r") {
+          // CRLF
+          if (i + 1 < text.length && text.charAt(i + 1) === "\n") {
+            i += 2;
+          } else {
+            i += 1;
+          }
+          row.push(field);
+          rows.push(row);
+          row = [];
+          field = "";
+          continue;
+        }
+        if (c === "\n") {
+          i += 1;
+          row.push(field);
+          rows.push(row);
+          row = [];
+          field = "";
+          continue;
+        }
+
+        field += c;
+        i += 1;
+      }
+    }
+
+    // 最終フィールド
+    row.push(field);
+    // 最終行が空行だけなら捨てる
+    var allEmpty = true;
+    for (var k = 0; k < row.length; k++) {
+      if (row[k] !== "") { allEmpty = false; break; }
+    }
+    if (!allEmpty) rows.push(row);
+
+    return rows;
+  }
+
+  function normalizeQuestionsFromCSV(csvText) {
+    var rows = parseCSV(csvText);
+    if (!rows || rows.length < 2) {
+      return { questions: [], categories: [] };
+    }
+
+    var header = rows[0];
+    var colIndex = {};
+    for (var i = 0; i < header.length; i++) {
+      colIndex[header[i]] = i;
+    }
+
+    function getCell(r, name) {
+      var idx = colIndex[name];
+      if (idx === undefined) return "";
+      return (r[idx] === undefined || r[idx] === null) ? "" : String(r[idx]);
+    }
 
     var questions = [];
-    var stats = {};
+    var catMap = {};
 
-    // 連番チェック（警告扱い）：prefixごとに欠番/重複/並びを検出
-    var idNumsByPrefix = {};
+    for (var r = 1; r < rows.length; r++) {
+      var line = rows[r];
+      if (!line || line.length === 0) continue;
 
-    for (var i = 1; i < parsed.length; i++) {
-      var cols = parsed[i];
-      var lineNo = i + 1;
+      var id = getCell(line, "ID");
+      var category = getCell(line, "Category");
+      var question = getCell(line, "Question");
+      var c1 = getCell(line, "Choice1");
+      var c2 = getCell(line, "Choice2");
+      var c3 = getCell(line, "Choice3");
+      var c4 = getCell(line, "Choice4");
+      var explanation = getCell(line, "Explanation");
 
-      if (cols.length !== 8) {
-        errors.push("列数不正 line=" + lineNo + " cols=" + cols.length);
-        continue;
-      }
+      // 必須が空ならスキップ（雑音行対策）
+      if (!question) continue;
 
-      // 空欄チェック
-      for (var c = 0; c < 8; c++) {
-        if (Util.trim(cols[c]) === "") {
-          errors.push("空欄 line=" + lineNo + " col=" + (c + 1));
-          break;
-        }
-      }
-      if (errors.length && errors[errors.length - 1].indexOf("空欄 line=" + lineNo) === 0) continue;
-
-      var id = cols[0];
-      var category = cols[1];
-      var question = cols[2];
-      var choice1 = cols[3]; // 正解
-      var choice2 = cols[4];
-      var choice3 = cols[5];
-      var choice4 = cols[6];
-      var explanation = cols[7];
-
-      if (seenID[id]) {
-        errors.push("ID重複: " + id);
-        continue;
-      }
-      seenID[id] = true;
-
-      if (seenQ[question]) {
-        errors.push("問題文重複: " + question);
-        continue;
-      }
-      seenQ[question] = true;
-
-      // ID連番検出用
-      var info = Util.parseID(id);
-      if (info) {
-        if (!idNumsByPrefix[info.prefix]) idNumsByPrefix[info.prefix] = [];
-        idNumsByPrefix[info.prefix].push(info.num);
-      } else {
-        warnings.push("ID形式注意（推奨: PREFIX-0001）: " + id);
-      }
-
-      stats[category] = (stats[category] || 0) + 1;
-
-      questions.push({
+      var q = {
         id: id,
         category: category,
         question: question,
-        choice1: choice1,
-        choice2: choice2,
-        choice3: choice3,
-        choice4: choice4,
-        explanation: explanation
-      });
+        explanation: explanation,
+        // Answer列なし：Choice1が正解
+        choicesRaw: [
+          { text: c1, isCorrect: true },
+          { text: c2, isCorrect: false },
+          { text: c3, isCorrect: false },
+          { text: c4, isCorrect: false }
+        ]
+      };
+
+      questions.push(q);
+
+      if (category && !catMap[category]) catMap[category] = true;
     }
 
-    // 連番警告
-    var prefixes = Object.keys(idNumsByPrefix);
-    for (var p = 0; p < prefixes.length; p++) {
-      var pref = prefixes[p];
-      var nums = idNumsByPrefix[pref].slice();
-      nums.sort(function (a, b) { return a - b; });
-
-      // 欠番検出（min..max）
-      if (nums.length >= 2) {
-        var min = nums[0], max = nums[nums.length - 1];
-        var set = {};
-        for (var k = 0; k < nums.length; k++) set[nums[k]] = true;
-
-        var gaps = [];
-        for (var n = min; n <= max; n++) {
-          if (!set[n]) gaps.push(n);
-          if (gaps.length >= 20) break; // 多すぎ抑制
-        }
-        if (gaps.length) {
-          warnings.push("ID欠番の可能性 [" + pref + "] 例: " + gaps.slice(0, 10).join(", ") + (gaps.length > 10 ? " ..." : ""));
-        }
-      }
+    var categories = [];
+    for (var k2 in catMap) {
+      if (catMap.hasOwnProperty(k2)) categories.push(k2);
     }
+    categories.sort();
 
-    if (errors.length) {
-      var e = new Error("CSV検証NG（" + errors.length + "件）");
-      e._detail = { ok: false, errors: errors, warnings: warnings, questions: [], stats: {} };
-      throw e;
-    }
+    return { questions: questions, categories: categories };
+  }
 
-    return { ok: true, errors: [], warnings: warnings, questions: questions, stats: stats };
+  function loadFallback(onOk, onErr) {
+    xhrGetText("./questions_fallback.csv", function (text) {
+      var norm = normalizeQuestionsFromCSV(text);
+      onOk(norm);
+    }, onErr);
   }
 
   global.CsvLoader = {
-    loadFromUrl: loadFromUrl,
-    loadFromFile: loadFromFile,
-    validateAndBuild: validateAndBuild
+    loadFallback: loadFallback,
+    normalizeQuestionsFromCSV: normalizeQuestionsFromCSV
   };
 })(window);
