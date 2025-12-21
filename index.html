@@ -1,4 +1,4 @@
-<!-- index.html / 作成日時(JST): 2025-12-21 16:12:00 -->
+<!-- index.html / 作成日時(JST): 2025-12-21 16:24:00 -->
 <!DOCTYPE html>
 <html lang="ja">
 <head>
@@ -35,27 +35,28 @@
           </select>
         </label>
 
-        <!-- 右側に開始UI（要件） -->
+        <!-- 開始UI（ブロックごとに外枠） -->
         <div class="start-controls" aria-label="開始設定">
-          <!-- ランダムスタート：N問 -->
-          <input id="randCount" class="field__control field__control--num" type="number" inputmode="numeric" min="1" value="10" />
-          <span class="inline-text">問</span>
-          <button id="btnRandomStart" class="btn" type="button">ランダムスタート</button>
+          <!-- ランダム開始 -->
+          <div class="start-block" aria-label="ランダム開始">
+            <input id="randCount" class="field__control field__control--num" type="number" inputmode="numeric" min="1" value="10" />
+            <span class="inline-text">問</span>
+            <button id="btnRandomStart" class="btn" type="button">ランダムスタート</button>
+          </div>
 
-          <span class="sep">|</span>
-
-          <!-- ID指定スタート：ID / 1から / N問 -->
-          <span class="inline-text inline-text--strong">ID</span>
-          <input id="startId" class="field__control field__control--num" type="number" inputmode="numeric" min="1" value="1" />
-          <span class="inline-text">から</span>
-          <input id="startCount" class="field__control field__control--num" type="number" inputmode="numeric" min="1" value="10" />
-          <span class="inline-text">問</span>
-          <button id="btnStart" class="btn" type="button">スタート</button>
+          <!-- ID指定開始 -->
+          <div class="start-block" aria-label="ID指定開始">
+            <span class="inline-text inline-text--strong">ID</span>
+            <input id="startId" class="field__control field__control--num" type="number" inputmode="numeric" min="1" value="1" />
+            <span class="inline-text">から</span>
+            <input id="startCount" class="field__control field__control--num" type="number" inputmode="numeric" min="1" value="10" />
+            <span class="inline-text">問</span>
+            <button id="btnStart" class="btn" type="button">スタート</button>
+          </div>
         </div>
       </div>
 
       <div class="toolbar__right">
-        <!-- 既存：必要なら残す（後で配線） -->
         <button id="btnPrint" class="btn btn--ghost" type="button">印刷</button>
         <button id="btnExportCsv" class="btn btn--ghost" type="button">CSV</button>
       </div>
@@ -106,7 +107,7 @@
             <div class="choices__label">選択肢（毎回ランダム表示：機能は後で追加）</div>
 
             <div class="choices__grid" id="choicesGrid">
-              <!-- render.jsが描画 -->
+              <!-- render.js が描画 -->
             </div>
 
             <div class="choices__actions">
@@ -132,7 +133,6 @@
             <div class="notice__title" id="noticeTitle">状態</div>
             <div class="notice__body" id="noticeBody">ここにメッセージ（読込結果、エラーなど）を表示します。</div>
           </div>
-
         </div>
       </section>
     </div>
