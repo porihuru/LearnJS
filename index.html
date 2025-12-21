@@ -1,106 +1,206 @@
-<!-- index.html -->
-<!-- 2025-12-21 JST -->
-<!doctype html>
+<!-- index.html / 作成日時(JST): 2025-12-21 15:32:01 -->
+<!DOCTYPE html>
 <html lang="ja">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>FP3 クイズ（CSV: Choice1が正解）</title>
-  <style>
-    body { font-family: system-ui, -apple-system, "Segoe UI", sans-serif; margin: 12px; }
-    h1 { font-size: 18px; margin: 0 0 10px; }
-    .box { border: 1px solid #ccc; border-radius: 10px; padding: 10px; margin-bottom: 10px; }
-    .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
-    button { padding: 10px 12px; border-radius: 10px; border: 1px solid #888; background: #fff; }
-    button:disabled { opacity: .5; }
-    textarea { width: 100%; height: 120px; }
-    pre { white-space: pre-wrap; background: #f7f7f7; padding: 8px; border-radius: 10px; border: 1px solid #ddd; }
-    .pill { display:inline-block; padding:2px 8px; border:1px solid #aaa; border-radius:999px; font-size:12px; }
-    .ok { color:#0a7; font-weight:700; }
-    .ng { color:#c00; font-weight:700; }
-    .small { font-size:12px; color:#555; }
-    .hidden { display:none; }
-    .q { font-size:16px; font-weight:700; margin:8px 0 10px; }
-    .choices { display:grid; gap:8px; }
-    .choiceBtn { width:100%; text-align:left; }
-    .choiceBtn.correct { border-color:#0a7; }
-    .choiceBtn.wrong { border-color:#c00; }
-  </style>
+  <meta charset="UTF-8" />
+  <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>text_access - Quiz</title>
+  <link rel="stylesheet" href="./style.css" />
 </head>
+
 <body>
-  <h1>FP3 クイズ（CSV：Choice1=正解 / Answer列なし）</h1>
+  <!-- Header / Toolbar -->
+  <header class="app-header" role="banner">
+    <div class="app-header__row">
+      <div class="app-brand">
+        <div class="app-brand__title" id="appTitle">text_access</div>
+        <div class="app-brand__subtitle" id="appSubtitle">問題集</div>
+      </div>
 
-  <div class="box">
-    <div class="row">
-      <button id="btnAutoLoad">フォールバック自動読込</button>
-      <button id="btnLoadSample">サンプルCSV読込</button>
-      <input id="csvFile" type="file" accept=".csv,text/csv" />
-      <button id="btnLoadFile">このファイルを読込</button>
-      <button id="btnClear">クリア</button>
-    </div>
-
-    <div class="small" style="margin-top:6px;">
-      必須ヘッダー：<b>ID,Category,Question,Choice1,Choice2,Choice3,Choice4,Explanation</b>
-    </div>
-
-    <div style="margin-top:8px;">
-      <textarea id="csvPaste" placeholder="ここにCSVを貼り付け →「貼り付け読込」"></textarea>
-      <div class="row" style="margin-top:6px;">
-        <button id="btnLoadPaste">貼り付け読込</button>
+      <div class="app-status" aria-live="polite">
+        <span class="badge" id="badgeDataSource" title="データソース">SOURCE: <span id="statusDataSource">---</span></span>
+        <span class="badge" id="badgeCount" title="件数">COUNT: <span id="statusCount">0</span></span>
+        <span class="badge" id="badgeLoadedAt" title="最終読込">LOAD: <span id="statusLoadedAt">---</span></span>
       </div>
     </div>
 
-    <div style="margin-top:10px;">
-      <div class="row">
-        <span id="validationBadge" class="pill">未読み込み</span>
-        <span id="summary" class="pill"></span>
+    <div class="toolbar" role="navigation" aria-label="操作">
+      <div class="toolbar__left">
+        <label class="field field--inline" for="categorySelect">
+          <span class="field__label">カテゴリ</span>
+          <select id="categorySelect" class="field__control">
+            <option value="">（すべて）</option>
+          </select>
+        </label>
+
+        <label class="field field--inline" for="searchInput">
+          <span class="field__label">検索</span>
+          <input id="searchInput" class="field__control" type="text" placeholder="問題・選択肢・解説（部分一致）" />
+        </label>
+
+        <button id="btnSearch" class="btn">検索</button>
+        <button id="btnClear" class="btn btn--ghost">クリア</button>
       </div>
-      <pre id="validationLog" style="margin-top:8px;"></pre>
-    </div>
-  </div>
 
-  <div class="box">
-    <div class="row">
-      <label class="pill">出題数
-        <input id="totalCount" type="number" min="1" max="500" value="40" style="width:80px;margin-left:6px;">
-      </label>
-      <label class="pill">
-        <input id="balanced" type="checkbox" checked>
-        カテゴリーをバランスよく（推奨）
-      </label>
-      <button id="btnStart" disabled>開始</button>
-    </div>
-    <div class="small" style="margin-top:6px;">
-      バランス出題はカテゴリごとに交互（ラウンドロビン）で偏りを抑えます。
-    </div>
-  </div>
-
-  <div id="quizBox" class="box hidden">
-    <div class="row" style="justify-content:space-between;">
-      <div>
-        <span id="qMeta" class="pill"></span>
-        <span id="qProgress" class="pill"></span>
+      <div class="toolbar__right">
+        <button id="btnReload" class="btn">再読込</button>
+        <button id="btnPrint" class="btn btn--ghost">印刷</button>
+        <button id="btnExportCsv" class="btn btn--ghost">CSV</button>
       </div>
-      <div class="pill">正解数: <span id="score">0</span></div>
     </div>
+  </header>
 
-    <div id="qText" class="q"></div>
-    <div id="choices" class="choices"></div>
+  <!-- Main -->
+  <main class="app-main" role="main">
+    <div class="layout">
+      <!-- Left: List / Navigator -->
+      <section class="panel panel--list" aria-label="問題一覧">
+        <div class="panel__header">
+          <div class="panel__title">一覧</div>
+          <div class="panel__meta">
+            <span class="muted">表示:</span> <span id="listShownCount">0</span>
+          </div>
+        </div>
 
-    <div id="judgeBox" class="hidden" style="margin-top:10px;">
-      <span id="judgeBadge" class="pill"></span>
-      <div class="small" style="margin-top:6px;">解説（Explanation）</div>
-      <pre id="explain"></pre>
+        <div class="panel__body">
+          <div class="list-tools">
+            <button id="btnModeQuiz" class="tab tab--active" type="button">出題</button>
+            <button id="btnModeList" class="tab" type="button">一覧</button>
+            <button id="btnModeSetting" class="tab" type="button">設定</button>
+          </div>
+
+          <div id="questionList" class="q-list" role="listbox" aria-label="問題行">
+            <!-- JSで行を描画（例：.q-row） -->
+            <div class="q-list__empty" id="questionListEmpty">データを読み込むと一覧が表示されます。</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Right: Quiz View -->
+      <section class="panel panel--quiz" aria-label="出題画面">
+        <div class="panel__header">
+          <div class="panel__title">出題</div>
+          <div class="panel__meta">
+            <span class="badge badge--soft" id="badgeProgress">
+              <span id="progressCurrent">0</span>/<span id="progressTotal">0</span>
+            </span>
+          </div>
+        </div>
+
+        <div class="panel__body">
+          <!-- Top info row -->
+          <div class="quiz-top">
+            <div class="kv">
+              <div class="kv__k">ID</div>
+              <div class="kv__v" id="quizId">-</div>
+            </div>
+            <div class="kv">
+              <div class="kv__k">カテゴリ</div>
+              <div class="kv__v" id="quizCategory">-</div>
+            </div>
+            <div class="kv">
+              <div class="kv__k">状態</div>
+              <div class="kv__v" id="quizState">未回答</div>
+            </div>
+          </div>
+
+          <!-- Question -->
+          <article class="quiz-card" aria-label="問題">
+            <div class="quiz-card__label">問題</div>
+            <div class="quiz-card__question" id="quizQuestion">
+              （ここに問題文が表示されます）
+            </div>
+          </article>
+
+          <!-- Choices -->
+          <section class="choices" aria-label="選択肢">
+            <div class="choices__label">選択肢（毎回ランダム表示）</div>
+
+            <div class="choices__grid" id="choicesGrid">
+              <!-- JSで .choice-btn を4つ生成 -->
+              <button class="choice-btn" type="button" data-choice-index="0">
+                <span class="choice-btn__mark">A</span>
+                <span class="choice-btn__text">（選択肢）</span>
+              </button>
+              <button class="choice-btn" type="button" data-choice-index="1">
+                <span class="choice-btn__mark">B</span>
+                <span class="choice-btn__text">（選択肢）</span>
+              </button>
+              <button class="choice-btn" type="button" data-choice-index="2">
+                <span class="choice-btn__mark">C</span>
+                <span class="choice-btn__text">（選択肢）</span>
+              </button>
+              <button class="choice-btn" type="button" data-choice-index="3">
+                <span class="choice-btn__mark">D</span>
+                <span class="choice-btn__text">（選択肢）</span>
+              </button>
+            </div>
+
+            <div class="choices__actions">
+              <button id="btnShowAnswer" class="btn btn--ghost" type="button">解説を表示</button>
+              <button id="btnResetAnswer" class="btn btn--ghost" type="button">回答をリセット</button>
+            </div>
+          </section>
+
+          <!-- Explanation -->
+          <details class="explain" id="explainBox">
+            <summary class="explain__summary">解説</summary>
+            <div class="explain__body" id="quizExplanation">
+              （ここに解説が表示されます）
+            </div>
+          </details>
+
+          <!-- Bottom controls -->
+          <div class="quiz-controls" aria-label="操作">
+            <button id="btnPrev" class="btn btn--ghost" type="button">前へ</button>
+            <button id="btnNext" class="btn" type="button">次へ</button>
+            <button id="btnShuffleNext" class="btn btn--ghost" type="button">次へ（再シャッフル）</button>
+          </div>
+
+          <!-- Message / Errors -->
+          <div class="notice" id="noticeBox" role="status" aria-live="polite">
+            <div class="notice__title" id="noticeTitle">状態</div>
+            <div class="notice__body" id="noticeBody">ここにメッセージ（読込結果、エラーなど）を表示します。</div>
+          </div>
+
+        </div>
+      </section>
     </div>
+  </main>
 
-    <div class="row" style="margin-top:10px;">
-      <button id="btnNext" disabled>次へ</button>
-      <button id="btnEnd">終了</button>
+  <!-- Footer -->
+  <footer class="app-footer" role="contentinfo">
+    <div class="footer-row">
+      <div class="footer-item">
+        接続先：<span id="footerConn">---</span>
+      </div>
+      <div class="footer-item">
+        Webルート：<span id="footerWebRoot">---</span>
+      </div>
+      <div class="footer-item">
+        API：<span id="footerApi">---</span>
+      </div>
     </div>
-  </div>
+    <div class="footer-row">
+      <div class="footer-item">
+        データ：<span id="footerDataSource">---</span>
+      </div>
+      <div class="footer-item">
+        件数：<span id="footerCount">0</span>
+      </div>
+      <div class="footer-item">
+        最終読込：<span id="footerLoadedAt">---</span>
+      </div>
+    </div>
+  </footer>
 
+  <!-- JS（後で追加実装） -->
   <script src="./js/util.js"></script>
   <script src="./js/state.js"></script>
+  <script src="./js/sp_base.js"></script>
+  <script src="./js/sp_api.js"></script>
+  <script src="./js/sp_questions.js"></script>
   <script src="./js/csv_loader.js"></script>
   <script src="./js/engine.js"></script>
   <script src="./js/render.js"></script>
