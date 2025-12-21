@@ -1,4 +1,4 @@
-<!-- index.html / 作成日時(JST): 2025-12-21 15:40:00 -->
+<!-- index.html / 作成日時(JST): 2025-12-21 16:12:00 -->
 <!DOCTYPE html>
 <html lang="ja">
 <head>
@@ -27,7 +27,7 @@
 
     <div class="toolbar" role="navigation" aria-label="操作">
       <div class="toolbar__left">
-        <!-- 検索UIは削除（要件） -->
+        <!-- カテゴリ -->
         <label class="field field--inline" for="categorySelect">
           <span class="field__label">カテゴリ</span>
           <select id="categorySelect" class="field__control">
@@ -35,53 +35,51 @@
           </select>
         </label>
 
-        <button id="btnLoadFallback" class="btn" type="button">questions_fallback.csv 読込</button>
+        <!-- 右側に開始UI（要件） -->
+        <div class="start-controls" aria-label="開始設定">
+          <!-- ランダムスタート：N問 -->
+          <input id="randCount" class="field__control field__control--num" type="number" inputmode="numeric" min="1" value="10" />
+          <span class="inline-text">問</span>
+          <button id="btnRandomStart" class="btn" type="button">ランダムスタート</button>
+
+          <span class="sep">|</span>
+
+          <!-- ID指定スタート：ID / 1から / N問 -->
+          <span class="inline-text inline-text--strong">ID</span>
+          <input id="startId" class="field__control field__control--num" type="number" inputmode="numeric" min="1" value="1" />
+          <span class="inline-text">から</span>
+          <input id="startCount" class="field__control field__control--num" type="number" inputmode="numeric" min="1" value="10" />
+          <span class="inline-text">問</span>
+          <button id="btnStart" class="btn" type="button">スタート</button>
+        </div>
       </div>
 
       <div class="toolbar__right">
+        <!-- 既存：必要なら残す（後で配線） -->
         <button id="btnPrint" class="btn btn--ghost" type="button">印刷</button>
         <button id="btnExportCsv" class="btn btn--ghost" type="button">CSV</button>
       </div>
     </div>
   </header>
 
-  <!-- Main -->
+  <!-- Main（一覧は削除：出題パネルのみ） -->
   <main class="app-main" role="main">
-    <div class="layout">
-      <!-- Left: List -->
-      <section class="panel panel--list" aria-label="問題一覧">
-        <div class="panel__header">
-          <div class="panel__title">一覧</div>
-          <div class="panel__meta">
-            <span class="muted">表示:</span> <span id="listShownCount">0</span>
-          </div>
-        </div>
-
-        <div class="panel__body">
-          <div class="list-tools">
-            <button id="btnModeQuiz" class="tab tab--active" type="button">出題</button>
-            <button id="btnModeList" class="tab" type="button">一覧</button>
-            <button id="btnModeSetting" class="tab" type="button">設定</button>
-          </div>
-
-          <div id="questionList" class="q-list" role="listbox" aria-label="問題行">
-            <div class="q-list__empty" id="questionListEmpty">questions_fallback.csv を読み込むと一覧が表示されます。</div>
-          </div>
-        </div>
-      </section>
-
-      <!-- Right: Quiz View -->
-      <section class="panel panel--quiz" aria-label="出題画面">
+    <div class="layout layout--single">
+      <section class="panel panel--quiz panel--full" aria-label="出題画面">
         <div class="panel__header">
           <div class="panel__title">出題</div>
           <div class="panel__meta">
             <span class="badge badge--soft" id="badgeProgress">
               <span id="progressCurrent">0</span>/<span id="progressTotal">0</span>
             </span>
+            <span class="badge badge--soft" id="badgeMode">
+              MODE: <span id="modeText">---</span>
+            </span>
           </div>
         </div>
 
         <div class="panel__body">
+          <!-- Top info row -->
           <div class="quiz-top">
             <div class="kv">
               <div class="kv__k">ID</div>
@@ -97,13 +95,15 @@
             </div>
           </div>
 
+          <!-- Question -->
           <article class="quiz-card" aria-label="問題">
             <div class="quiz-card__label">問題</div>
             <div class="quiz-card__question" id="quizQuestion">（未読込）</div>
           </article>
 
+          <!-- Choices -->
           <section class="choices" aria-label="選択肢">
-            <div class="choices__label">選択肢（毎回ランダム表示：後で機能追加）</div>
+            <div class="choices__label">選択肢（毎回ランダム表示：機能は後で追加）</div>
 
             <div class="choices__grid" id="choicesGrid">
               <!-- render.jsが描画 -->
@@ -115,20 +115,24 @@
             </div>
           </section>
 
+          <!-- Explanation -->
           <details class="explain" id="explainBox">
             <summary class="explain__summary">解説</summary>
             <div class="explain__body" id="quizExplanation">（未読込）</div>
           </details>
 
+          <!-- Bottom controls -->
           <div class="quiz-controls" aria-label="操作">
             <button id="btnPrev" class="btn btn--ghost" type="button" disabled>前へ</button>
             <button id="btnNext" class="btn" type="button" disabled>次へ</button>
           </div>
 
+          <!-- Message / Errors -->
           <div class="notice" id="noticeBox" role="status" aria-live="polite">
             <div class="notice__title" id="noticeTitle">状態</div>
-            <div class="notice__body" id="noticeBody">起動時に questions_fallback.csv を自動で読み込みます。</div>
+            <div class="notice__body" id="noticeBody">ここにメッセージ（読込結果、エラーなど）を表示します。</div>
           </div>
+
         </div>
       </section>
     </div>
@@ -149,7 +153,7 @@
     </div>
   </footer>
 
-  <!-- JS -->
+  <!-- JS（後で機能追加） -->
   <script src="./js/util.js"></script>
   <script src="./js/state.js"></script>
   <script src="./js/csv_loader.js"></script>
