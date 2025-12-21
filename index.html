@@ -1,4 +1,4 @@
-<!-- index.html / 作成日時(JST): 2025-12-21 15:32:01 -->
+<!-- index.html / 作成日時(JST): 2025-12-21 15:40:00 -->
 <!DOCTYPE html>
 <html lang="ja">
 <head>
@@ -27,6 +27,7 @@
 
     <div class="toolbar" role="navigation" aria-label="操作">
       <div class="toolbar__left">
+        <!-- 検索UIは削除（要件） -->
         <label class="field field--inline" for="categorySelect">
           <span class="field__label">カテゴリ</span>
           <select id="categorySelect" class="field__control">
@@ -34,19 +35,12 @@
           </select>
         </label>
 
-        <label class="field field--inline" for="searchInput">
-          <span class="field__label">検索</span>
-          <input id="searchInput" class="field__control" type="text" placeholder="問題・選択肢・解説（部分一致）" />
-        </label>
-
-        <button id="btnSearch" class="btn">検索</button>
-        <button id="btnClear" class="btn btn--ghost">クリア</button>
+        <button id="btnLoadFallback" class="btn" type="button">questions_fallback.csv 読込</button>
       </div>
 
       <div class="toolbar__right">
-        <button id="btnReload" class="btn">再読込</button>
-        <button id="btnPrint" class="btn btn--ghost">印刷</button>
-        <button id="btnExportCsv" class="btn btn--ghost">CSV</button>
+        <button id="btnPrint" class="btn btn--ghost" type="button">印刷</button>
+        <button id="btnExportCsv" class="btn btn--ghost" type="button">CSV</button>
       </div>
     </div>
   </header>
@@ -54,7 +48,7 @@
   <!-- Main -->
   <main class="app-main" role="main">
     <div class="layout">
-      <!-- Left: List / Navigator -->
+      <!-- Left: List -->
       <section class="panel panel--list" aria-label="問題一覧">
         <div class="panel__header">
           <div class="panel__title">一覧</div>
@@ -71,8 +65,7 @@
           </div>
 
           <div id="questionList" class="q-list" role="listbox" aria-label="問題行">
-            <!-- JSで行を描画（例：.q-row） -->
-            <div class="q-list__empty" id="questionListEmpty">データを読み込むと一覧が表示されます。</div>
+            <div class="q-list__empty" id="questionListEmpty">questions_fallback.csv を読み込むと一覧が表示されます。</div>
           </div>
         </div>
       </section>
@@ -89,7 +82,6 @@
         </div>
 
         <div class="panel__body">
-          <!-- Top info row -->
           <div class="quiz-top">
             <div class="kv">
               <div class="kv__k">ID</div>
@@ -105,65 +97,38 @@
             </div>
           </div>
 
-          <!-- Question -->
           <article class="quiz-card" aria-label="問題">
             <div class="quiz-card__label">問題</div>
-            <div class="quiz-card__question" id="quizQuestion">
-              （ここに問題文が表示されます）
-            </div>
+            <div class="quiz-card__question" id="quizQuestion">（未読込）</div>
           </article>
 
-          <!-- Choices -->
           <section class="choices" aria-label="選択肢">
-            <div class="choices__label">選択肢（毎回ランダム表示）</div>
+            <div class="choices__label">選択肢（毎回ランダム表示：後で機能追加）</div>
 
             <div class="choices__grid" id="choicesGrid">
-              <!-- JSで .choice-btn を4つ生成 -->
-              <button class="choice-btn" type="button" data-choice-index="0">
-                <span class="choice-btn__mark">A</span>
-                <span class="choice-btn__text">（選択肢）</span>
-              </button>
-              <button class="choice-btn" type="button" data-choice-index="1">
-                <span class="choice-btn__mark">B</span>
-                <span class="choice-btn__text">（選択肢）</span>
-              </button>
-              <button class="choice-btn" type="button" data-choice-index="2">
-                <span class="choice-btn__mark">C</span>
-                <span class="choice-btn__text">（選択肢）</span>
-              </button>
-              <button class="choice-btn" type="button" data-choice-index="3">
-                <span class="choice-btn__mark">D</span>
-                <span class="choice-btn__text">（選択肢）</span>
-              </button>
+              <!-- render.jsが描画 -->
             </div>
 
             <div class="choices__actions">
-              <button id="btnShowAnswer" class="btn btn--ghost" type="button">解説を表示</button>
-              <button id="btnResetAnswer" class="btn btn--ghost" type="button">回答をリセット</button>
+              <button id="btnShowAnswer" class="btn btn--ghost" type="button" disabled>解説を表示</button>
+              <button id="btnResetAnswer" class="btn btn--ghost" type="button" disabled>回答をリセット</button>
             </div>
           </section>
 
-          <!-- Explanation -->
           <details class="explain" id="explainBox">
             <summary class="explain__summary">解説</summary>
-            <div class="explain__body" id="quizExplanation">
-              （ここに解説が表示されます）
-            </div>
+            <div class="explain__body" id="quizExplanation">（未読込）</div>
           </details>
 
-          <!-- Bottom controls -->
           <div class="quiz-controls" aria-label="操作">
-            <button id="btnPrev" class="btn btn--ghost" type="button">前へ</button>
-            <button id="btnNext" class="btn" type="button">次へ</button>
-            <button id="btnShuffleNext" class="btn btn--ghost" type="button">次へ（再シャッフル）</button>
+            <button id="btnPrev" class="btn btn--ghost" type="button" disabled>前へ</button>
+            <button id="btnNext" class="btn" type="button" disabled>次へ</button>
           </div>
 
-          <!-- Message / Errors -->
           <div class="notice" id="noticeBox" role="status" aria-live="polite">
             <div class="notice__title" id="noticeTitle">状態</div>
-            <div class="notice__body" id="noticeBody">ここにメッセージ（読込結果、エラーなど）を表示します。</div>
+            <div class="notice__body" id="noticeBody">起動時に questions_fallback.csv を自動で読み込みます。</div>
           </div>
-
         </div>
       </section>
     </div>
@@ -171,17 +136,6 @@
 
   <!-- Footer -->
   <footer class="app-footer" role="contentinfo">
-    <div class="footer-row">
-      <div class="footer-item">
-        接続先：<span id="footerConn">---</span>
-      </div>
-      <div class="footer-item">
-        Webルート：<span id="footerWebRoot">---</span>
-      </div>
-      <div class="footer-item">
-        API：<span id="footerApi">---</span>
-      </div>
-    </div>
     <div class="footer-row">
       <div class="footer-item">
         データ：<span id="footerDataSource">---</span>
@@ -195,12 +149,9 @@
     </div>
   </footer>
 
-  <!-- JS（後で追加実装） -->
+  <!-- JS -->
   <script src="./js/util.js"></script>
   <script src="./js/state.js"></script>
-  <script src="./js/sp_base.js"></script>
-  <script src="./js/sp_api.js"></script>
-  <script src="./js/sp_questions.js"></script>
   <script src="./js/csv_loader.js"></script>
   <script src="./js/engine.js"></script>
   <script src="./js/render.js"></script>
