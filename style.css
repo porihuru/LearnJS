@@ -1,4 +1,4 @@
-/* style.css / 作成日時(JST): 2025-12-21 15:40:00 */
+/* style.css / 作成日時(JST): 2025-12-21 16:12:00 */
 
 * { box-sizing: border-box; }
 html, body { height: 100%; }
@@ -65,7 +65,7 @@ body {
 .toolbar__left, .toolbar__right {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
   flex-wrap: wrap;
 }
 
@@ -77,14 +77,47 @@ body {
   border: 1px solid #cfd6df;
   border-radius: 8px;
   background: #fff;
-  min-width: 200px;
+  min-width: 180px;
   outline: none;
 }
+
 #categorySelect.field__control { min-width: 180px; }
 
 .field__control:focus {
   border-color: #6a8cff;
   box-shadow: 0 0 0 2px rgba(106, 140, 255, 0.18);
+}
+
+.field__control--num {
+  min-width: 90px;
+  width: 90px;
+  text-align: right;
+  padding-right: 8px;
+}
+
+/* Start controls (カテゴリ右側のセット) */
+.start-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding: 6px 8px;
+  border: 1px solid #e2e7ef;
+  border-radius: 10px;
+  background: #fff;
+}
+
+.inline-text {
+  font-size: 12px;
+  color: #333;
+  white-space: nowrap;
+}
+.inline-text--strong { font-weight: 700; }
+
+.sep {
+  color: #999;
+  padding: 0 2px;
+  user-select: none;
 }
 
 /* Buttons */
@@ -100,6 +133,7 @@ body {
 }
 .btn:hover { filter: brightness(1.05); }
 .btn:active { transform: translateY(1px); }
+.btn[disabled] { opacity: 0.55; cursor: default; }
 
 .btn--ghost {
   background: #fff;
@@ -107,30 +141,11 @@ body {
   border-color: #cfd6df;
 }
 
-.tab {
-  height: 32px;
-  padding: 0 10px;
-  border: 1px solid #cfd6df;
-  border-radius: 999px;
-  background: #fff;
-  color: #222;
-  font-size: 12px;
-  cursor: pointer;
-}
-.tab--active {
-  border-color: #2b2f36;
-  background: #2b2f36;
-  color: #fff;
-}
-
-/* Main layout */
+/* Main */
 .app-main { padding: 12px; }
 
-.layout {
-  display: flex;
-  gap: 12px;
-  align-items: stretch;
-}
+.layout { display: flex; gap: 12px; }
+.layout--single { display: block; }
 
 .panel {
   background: #fff;
@@ -154,36 +169,7 @@ body {
 .panel__meta { display: flex; align-items: center; gap: 8px; color: #333; font-size: 12px; }
 .panel__body { padding: 12px; }
 
-/* Panels widths */
-.panel--list { width: 34%; min-width: 280px; }
-.panel--quiz { width: 66%; }
-
-/* List */
-.list-tools { display: flex; gap: 8px; margin-bottom: 10px; }
-
-.q-list {
-  border: 1px solid #e2e7ef;
-  border-radius: 10px;
-  overflow: auto;
-  height: calc(100vh - 240px);
-  min-height: 280px;
-  background: #fff;
-}
-.q-list__empty {
-  padding: 12px;
-  color: #666;
-  font-size: 13px;
-}
-
-.q-row {
-  padding: 10px 12px;
-  border-bottom: 1px solid #eef2f6;
-  cursor: pointer;
-}
-.q-row:hover { background: #f7f9fc; }
-.q-row--selected { background: #eef4ff; }
-.q-row__title { font-size: 13px; font-weight: 600; }
-.q-row__meta { font-size: 12px; color: #666; margin-top: 4px; }
+.panel--full { width: 100%; }
 
 /* Quiz top */
 .quiz-top {
@@ -222,11 +208,13 @@ body {
 /* Choices */
 .choices { margin-top: 12px; }
 .choices__label { font-size: 12px; color: #666; margin-bottom: 8px; }
+
 .choices__grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 10px;
 }
+
 .choice-btn {
   display: flex;
   gap: 10px;
@@ -305,15 +293,14 @@ body {
 
 /* Responsive */
 @media (max-width: 980px) {
-  .layout { flex-direction: column; }
-  .panel--list, .panel--quiz { width: 100%; }
-  .q-list { height: 260px; }
   .choices__grid { grid-template-columns: 1fr; }
+  .field__control--num { width: 80px; min-width: 80px; }
+  .start-controls { gap: 6px; }
 }
 
 /* Print */
 @media print {
-  .app-header, .panel--list, .choices__actions, .quiz-controls, #noticeBox { display: none !important; }
+  .app-header, .choices__actions, .quiz-controls, #noticeBox { display: none !important; }
   body { background: #fff; }
   .app-main { padding: 0; }
   .panel { border: none; }
