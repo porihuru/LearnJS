@@ -1,4 +1,4 @@
-/* style.css / 作成日時(JST): 2025-12-21 16:24:00 */
+/* style.css / 作成日時(JST): 2025-12-22 14:22:00 */
 
 * { box-sizing: border-box; }
 html, body { height: 100%; }
@@ -25,6 +25,15 @@ body {
   background: #f2f5f8;
 }
 
+/* =========================
+   Layout container（左右余白）
+   ========================= */
+.container {
+  max-width: 1200px;     /* 大きすぎる横幅を抑制 */
+  margin: 0 auto;        /* 中央寄せ */
+  padding: 0 18px;       /* 左右余白（常時） */
+}
+
 /* Header */
 .app-header {
   position: sticky;
@@ -34,11 +43,21 @@ body {
   border-bottom: 1px solid #d7dde6;
 }
 
+/* ヘッダー内部をコンテナ化 */
+.app-header__row,
+.toolbar {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding-left: 18px;
+  padding-right: 18px;
+}
+
 .app-header__row {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 10px 12px;
+  padding-top: 10px;
+  padding-bottom: 10px;
   gap: 12px;
 }
 
@@ -59,7 +78,8 @@ body {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  padding: 10px 12px 12px 12px;
+  padding-top: 10px;
+  padding-bottom: 12px;
 }
 
 .toolbar__left, .toolbar__right {
@@ -143,8 +163,12 @@ body {
   border-color: #cfd6df;
 }
 
-/* Main */
-.app-main { padding: 12px; }
+/* Main（本文もコンテナ化） */
+.app-main {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 12px 18px;   /* 左右余白 + 上下 */
+}
 
 .layout { display: flex; gap: 12px; }
 .layout--single { display: block; }
@@ -282,15 +306,23 @@ body {
 .notice__title { font-size: 12px; color: #666; margin-bottom: 6px; }
 .notice__body  { font-size: 12px; color: #222; white-space: pre-wrap; }
 
-/* Footer */
+/* Footer（フッターもコンテナ化） */
 .app-footer {
   border-top: 1px solid #d7dde6;
   background: #fff;
-  padding: 10px 12px;
   font-size: 12px;
   color: #333;
 }
-.footer-row { display: flex; gap: 10px; flex-wrap: wrap; }
+
+.app-footer .footer-row {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 10px 18px;
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
 .footer-item { white-space: nowrap; }
 
 /* Responsive */
@@ -299,13 +331,22 @@ body {
   .field__control--num { width: 80px; min-width: 80px; }
   .start-controls { gap: 8px; }
   .start-block { gap: 6px; }
+
+  /* スマホで余白を少し小さく */
+  .app-header__row,
+  .toolbar,
+  .app-main,
+  .app-footer .footer-row {
+    padding-left: 12px;
+    padding-right: 12px;
+  }
 }
 
 /* Print */
 @media print {
   .app-header, .choices__actions, .quiz-controls, #noticeBox { display: none !important; }
   body { background: #fff; }
-  .app-main { padding: 0; }
+  .app-main { padding: 0; max-width: none; }
   .panel { border: none; }
   .panel__header { border: none; background: #fff; }
 }
