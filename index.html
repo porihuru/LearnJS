@@ -1,4 +1,4 @@
-<!-- index.html / 作成日時(JST): 2025-12-22 14:10:00 -->
+<!-- index.html / 作成日時(JST): 2025-12-23 11:05:00 -->
 <!DOCTYPE html>
 <html lang="ja">
 <head>
@@ -18,9 +18,12 @@
       </div>
 
       <div class="app-status" aria-live="polite">
-        <span class="badge" id="badgeDataSource" title="データソース">SOURCE: <span id="statusDataSource">---</span></span>
-        <span class="badge" id="badgeCount" title="件数">COUNT: <span id="statusCount">0</span></span>
-        <span class="badge" id="badgeLoadedAt" title="最終読込">LOAD: <span id="statusLoadedAt">---</span></span>
+        <span class="badge" title="アプリバージョン">BUILD: <span id="statusBuild">---</span></span>
+        <span class="badge" title="sp_baseバージョン">SP_BASE: <span id="statusSpBase">---</span></span>
+
+        <span class="badge" title="データソース">SOURCE: <span id="statusDataSource">---</span></span>
+        <span class="badge" title="件数">COUNT: <span id="statusCount">0</span></span>
+        <span class="badge" title="最終読込">LOAD: <span id="statusLoadedAt">---</span></span>
       </div>
     </div>
 
@@ -114,12 +117,10 @@
             <button id="btnNext" class="btn" type="button" disabled>次へ</button>
           </div>
 
-          <!-- ここに接続ログが蓄積表示されます -->
           <div class="notice" id="noticeBox" role="status" aria-live="polite">
             <div class="notice__title" id="noticeTitle">ログ</div>
             <div class="notice__body" id="noticeBody">起動時に SharePoint（問題01）へ接続を試行し、失敗時はCSVへ切替えます。</div>
           </div>
-
         </div>
       </section>
     </div>
@@ -127,23 +128,23 @@
 
   <footer class="app-footer" role="contentinfo">
     <div class="footer-row">
+      <div class="footer-item">BUILD: <span id="footerBuild">---</span></div>
+      <div class="footer-item">SP_BASE: <span id="footerSpBase">---</span></div>
       <div class="footer-item">データ：<span id="footerDataSource">---</span></div>
       <div class="footer-item">件数：<span id="footerCount">0</span></div>
       <div class="footer-item">最終読込：<span id="footerLoadedAt">---</span></div>
     </div>
   </footer>
 
-  <!-- JS（順番重要） -->
+  <!-- JS（キャッシュ回避を付けると切り分けが楽です） -->
   <script src="./js/util.js"></script>
   <script src="./js/state.js"></script>
 
-  
+  <script src="./js/sp_base.js?v=202512231105"></script>
+  <script src="./js/sp_api.js?v=202512231105"></script>
+  <script src="./js/sp_questions.js?v=202512231105"></script>
 
-<script src="./js/sp_base.js?v=202512231030"></script>
-<script src="./js/sp_api.js?v=202512231030"></script>
-<script src="./js/sp_questions.js?v=202512231030"></script>
-
-    <script src="./js/csv_loader.js"></script>
+  <script src="./js/csv_loader.js"></script>
   <script src="./js/engine.js"></script>
   <script src="./js/render.js"></script>
   <script src="./js/app.js"></script>
