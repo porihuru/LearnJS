@@ -1,12 +1,22 @@
-// render.js / 作成日時(JST): 2025-12-22 14:10:00
+// render.js / 作成日時(JST): 2025-12-23 11:05:00
 (function (global) {
   "use strict";
 
   function renderStatus() {
+    var build = (global.APP_INFO && global.APP_INFO.build) ? String(global.APP_INFO.build) : "---";
+    var spbase = (global.SP_BASE && global.SP_BASE.version) ? String(global.SP_BASE.version) : "---";
+    var spSource = (global.SP_BASE && global.SP_BASE.source) ? String(global.SP_BASE.source) : "";
+    if (spSource) spbase = spbase + " (" + spSource + ")";
+
+    Util.setText(Util.qs("#statusBuild"), build);
+    Util.setText(Util.qs("#statusSpBase"), spbase);
+
     Util.setText(Util.qs("#statusDataSource"), AppState.dataSource);
     Util.setText(Util.qs("#statusCount"), AppState.questions.length);
     Util.setText(Util.qs("#statusLoadedAt"), AppState.loadedAt);
 
+    Util.setText(Util.qs("#footerBuild"), build);
+    Util.setText(Util.qs("#footerSpBase"), spbase);
     Util.setText(Util.qs("#footerDataSource"), AppState.dataSource);
     Util.setText(Util.qs("#footerCount"), AppState.questions.length);
     Util.setText(Util.qs("#footerLoadedAt"), AppState.loadedAt);
