@@ -1,1 +1,341 @@
-aaa
+<!-- JST: 2025-12-23 18:13:20 / index.html -->
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>SharePoint リスト検索・表示（詳細ログ）</title>
+  <style>
+    body{font-family:sans-serif; padding:12px;}
+    .row{margin:8px 0;}
+    input{padding:8px; width:320px; max-width:100%;}
+    button{padding:8px 12px; margin:0 6px 6px 0;}
+    .box{border:1px solid #ddd; padding:10px; background:#fafafa;}
+    .lists{max-height:260px; overflow:auto; border:1px solid #ddd; padding:6px;}
+    .lists a{display:block; padding:6px; text-decoration:none; color:#0366d6;}
+    .lists a:hover{background:#eef6ff;}
+    pre{white-space:pre-wrap; background:#0b1020; color:#e6edf3; padding:10px; border:1px solid #1f2a44; overflow:auto; max-height:320px;}
+    .small{font-size:12px; color:#555;}
+    .pill{display:inline-block; padding:2px 6px; border:1px solid #ccc; border-radius:10px; background:#fff; margin-left:6px;}
+  </style>
+</head>
+<body>
+  <h2>SharePoint リスト検索・表示（詳細ログ）</h2>
+
+  <div class="box">
+    <div class="row small" id="siteInfo"></div>
+
+    <div class="row">
+      <button id="reload">① 一覧取得（起動テスト）</button>
+      <button id="clearLog">ログ消去</button>
+      <button id="copyLog">ログコピー</button>
+      <span class="pill" id="statusPill">idle</span>
+    </div>
+
+    <div class="row">
+      <input id="q" type="text" placeholder="リスト名で検索（例：問題、設定、後払）" />
+      <span class="small">（入力で絞り込み）</span>
+    </div>
+
+    <div class="row">
+      <div class="lists" id="lists"></div>
+    </div>
+  </div>
+
+  <h3>選択したリスト</h3>
+  <div class="small" id="selInfo"></div>
+  <pre id="items"></pre>
+
+  <h3>詳細ログ（写真で送ってください）</h3>
+  <pre id="log"></pre>
+
+<script>
+(function(){
+  // ====== Utilities ======
+  var elLog = document.getElementById("log");
+  var elLists = document.getElementById("lists");
+  var elItems = document.getElementById("items");
+  var elQ = document.getElementById("q");
+  var elSiteInfo = document.getElementById("siteInfo");
+  var elSelInfo = document.getElementById("selInfo");
+  var elPill = document.getElementById("statusPill");
+
+  function now(){
+    var d = new Date();
+    function z(n){ return (n<10?"0":"")+n; }
+    return d.getFullYear()+"-"+z(d.getMonth()+1)+"-"+z(d.getDate())+" "+z(d.getHours())+":"+z(d.getMinutes())+":"+z(d.getSeconds());
+  }
+  function setPill(s){ elPill.textContent = s; }
+  function log(s){
+    elLog.textContent += "[" + now() + "] " + s + "\n";
+    elLog.scrollTop = elLog.scrollHeight;
+  }
+  function clearLog(){ elLog.textContent = ""; }
+
+  function safeSnippet(s, max){
+    s = (s == null) ? "" : String(s);
+    if (s.length <= max) return s;
+    return s.substring(0, max) + "\n...(truncated " + (s.length-max) + " chars)";
+  }
+
+  function xhr(method, url, headers, body, cb){
+    var r = new XMLHttpRequest();
+    r.open(method, url, true);
+    // Edge95でも動く最低限のタイムアウト
+    r.timeout = 20000; // 20s
+    for (var k in headers) r.setRequestHeader(k, headers[k]);
+
+    r.onreadystatechange = function(){
+      if (r.readyState !== 4) return;
+      cb(null, r.status, r.responseText, r);
+    };
+    r.ontimeout = function(){
+      cb("timeout", 0, "", r);
+    };
+    r.onerror = function(){
+      cb("network_error", 0, "", r);
+    };
+    r.send(body || null);
+  }
+
+  // ====== Site URL detection ======
+  function detectSiteUrl(){
+    try{
+      if (window._spPageContextInfo && _spPageContextInfo.webAbsoluteUrl) {
+        return _spPageContextInfo.webAbsoluteUrl;
+      }
+    }catch(e){}
+    var href = location.href.split("#")[0].split("?")[0];
+    var origin = location.origin;
+    var path = href.substring(origin.length);
+    var cut = path;
+
+    var marks = ["/SiteAssets/", "/SitePages/", "/Lists/", "/DocLib/", "/Shared%20Documents/", "/Shared Documents/"];
+    for (var i=0; i<marks.length; i++){
+      var idx = cut.indexOf(marks[i]);
+      if (idx >= 0) { cut = cut.substring(0, idx); break; }
+    }
+    if (cut.charAt(cut.length-1) === "/") cut = cut.substring(0, cut.length-1);
+    return origin + cut;
+  }
+
+  var siteUrl = detectSiteUrl();
+  elSiteInfo.textContent =
+    "接続先サイト(自動判定): " + siteUrl +
+    " / ページURL: " + location.href;
+
+  // ====== SharePoint calls ======
+  function getDigest(cb){
+    var url = siteUrl + "/_api/contextinfo";
+    log("STEP: contextinfo (Digest取得)");
+    log("REQ: POST " + url);
+
+    xhr("POST", url, { "Accept":"application/json;odata=verbose" }, "", function(netErr, st, txt, r){
+      log("RES: status=" + st + " statusText=" + (r && r.statusText));
+      if (netErr) {
+        log("ERR: " + netErr);
+        return cb("Digest取得: " + netErr);
+      }
+      if (st < 200 || st >= 300) {
+        log("BODY(snippet):\n" + safeSnippet(txt, 1200));
+        return cb("Digest取得失敗: HTTP " + st);
+      }
+      try{
+        var j = JSON.parse(txt);
+        var digest = j.d.GetContextWebInformation.FormDigestValue;
+        log("OK: Digest取得");
+        cb(null, digest);
+      }catch(e){
+        log("BODY(snippet):\n" + safeSnippet(txt, 1200));
+        cb("Digest解析失敗: " + e);
+      }
+    });
+  }
+
+  function fetchLists(cb){
+    // Hidden除外は描画側でやる。まずは全部取る。
+    var url = siteUrl + "/_api/web/lists?$select=Id,Title,Hidden,BaseTemplate,ItemCount,RootFolder/ServerRelativeUrl&$expand=RootFolder&$top=5000";
+    log("STEP: lists (一覧取得)");
+    log("REQ: GET " + url);
+
+    xhr("GET", url, { "Accept":"application/json;odata=verbose" }, null, function(netErr, st, txt, r){
+      log("RES: status=" + st + " statusText=" + (r && r.statusText));
+      if (netErr) {
+        log("ERR: " + netErr);
+        return cb("一覧取得: " + netErr);
+      }
+      if (st < 200 || st >= 300) {
+        log("BODY(snippet):\n" + safeSnippet(txt, 2000));
+        return cb("リスト一覧取得失敗: HTTP " + st);
+      }
+      try{
+        var j = JSON.parse(txt);
+        cb(null, j.d.results);
+        log("OK: リスト一覧 " + j.d.results.length + " 件");
+      }catch(e){
+        log("BODY(snippet):\n" + safeSnippet(txt, 2000));
+        cb("リスト一覧解析失敗: " + e);
+      }
+    });
+  }
+
+  function getListMetaById(listId, cb){
+    var url = siteUrl + "/_api/web/lists(guid'" + encodeURIComponent(listId) + "')?$select=Id,Title,ItemCount,Hidden,RootFolder/ServerRelativeUrl&$expand=RootFolder";
+    log("STEP: list meta");
+    log("REQ: GET " + url);
+
+    xhr("GET", url, { "Accept":"application/json;odata=verbose" }, null, function(netErr, st, txt, r){
+      log("RES: status=" + st + " statusText=" + (r && r.statusText));
+      if (netErr) return cb("リスト情報: " + netErr);
+      if (st < 200 || st >= 300){
+        log("BODY(snippet):\n" + safeSnippet(txt, 2000));
+        return cb("リスト情報取得失敗: HTTP " + st);
+      }
+      try{
+        var j = JSON.parse(txt);
+        cb(null, j.d);
+      }catch(e){
+        log("BODY(snippet):\n" + safeSnippet(txt, 2000));
+        cb("リスト情報解析失敗: " + e);
+      }
+    });
+  }
+
+  function readTopItemsByListId(listId, cb){
+    var url = siteUrl + "/_api/web/lists(guid'" + encodeURIComponent(listId) + "')/items?$select=Id,Title,Modified&$top=10&$orderby=Id desc";
+    log("STEP: items (top10)");
+    log("REQ: GET " + url);
+
+    xhr("GET", url, { "Accept":"application/json;odata=verbose" }, null, function(netErr, st, txt, r){
+      log("RES: status=" + st + " statusText=" + (r && r.statusText));
+      if (netErr) return cb("アイテム取得: " + netErr);
+      if (st < 200 || st >= 300){
+        log("BODY(snippet):\n" + safeSnippet(txt, 2200));
+        return cb("アイテム取得失敗: HTTP " + st);
+      }
+      try{
+        var j = JSON.parse(txt);
+        cb(null, j.d.results);
+      }catch(e){
+        log("BODY(snippet):\n" + safeSnippet(txt, 2200));
+        cb("アイテム解析失敗: " + e);
+      }
+    });
+  }
+
+  // ====== UI / flow ======
+  var allLists = [];
+
+  function renderLists(){
+    var q = (elQ.value || "").toLowerCase();
+    var html = "";
+    var shown = 0;
+
+    for (var i=0; i<allLists.length; i++){
+      var L = allLists[i];
+      // Hiddenは隠す（必要なら表示切替を追加可能）
+      if (L.Hidden) continue;
+
+      var title = L.Title || "";
+      if (q && title.toLowerCase().indexOf(q) === -1) continue;
+
+      html += '<a href="#" data-id="' + L.Id + '">' +
+              title + ' <span class="small">(' + (L.ItemCount||0) + ')</span>' +
+              '</a>';
+      shown++;
+    }
+    if (!shown) html = '<div class="small">該当するリストがありません。</div>';
+    elLists.innerHTML = html;
+  }
+
+  function onSelectList(listId){
+    setPill("loading items");
+    elItems.textContent = "";
+    elSelInfo.textContent = "";
+    log("ACTION: select listId=" + listId);
+
+    getListMetaById(listId, function(err, meta){
+      if (err) { setPill("error"); log("ERR: " + err); return; }
+      elSelInfo.textContent = "リスト: " + meta.Title + " / 件数: " + meta.ItemCount + " / URL: " + (meta.RootFolder ? meta.RootFolder.ServerRelativeUrl : "");
+      log("OK: meta title=" + meta.Title);
+
+      readTopItemsByListId(listId, function(err2, items){
+        if (err2) { setPill("error"); log("ERR: " + err2); return; }
+        log("OK: items=" + items.length);
+
+        var out = "";
+        for (var i=0; i<items.length; i++){
+          out += "[" + items[i].Id + "] " + (items[i].Title || "") + " / " + items[i].Modified + "\n";
+        }
+        elItems.textContent = out || "(0件)";
+        setPill("ok");
+      });
+    });
+  }
+
+  function bindClicks(){
+    elLists.onclick = function(ev){
+      ev = ev || window.event;
+      var t = ev.target || ev.srcElement;
+      while (t && t !== elLists && !t.getAttribute("data-id")) t = t.parentNode;
+      if (!t || t === elLists) return;
+      if (ev.preventDefault) ev.preventDefault(); else ev.returnValue = false;
+      onSelectList(t.getAttribute("data-id"));
+    };
+  }
+
+  function loadAll(){
+    setPill("loading lists");
+    elLists.innerHTML = "";
+    elItems.textContent = "";
+    elSelInfo.textContent = "";
+    log("==== 起動テスト開始 ====");
+    log("siteUrl=" + siteUrl);
+
+    getDigest(function(err){
+      if (err) { setPill("error"); log("FATAL: " + err); return; }
+
+      fetchLists(function(err2, lists){
+        if (err2) { setPill("error"); log("FATAL: " + err2); return; }
+
+        allLists = lists || [];
+        renderLists();
+        setPill("ok");
+        log("==== 一覧表示OK（検索してクリックしてください） ====");
+      });
+    });
+  }
+
+  // グローバル例外もログに出す（写真で原因追える）
+  window.onerror = function(msg, url, line, col, err){
+    log("JS ERROR: " + msg + " @ " + url + ":" + line + ":" + col);
+    if (err && err.stack) log("STACK:\n" + safeSnippet(err.stack, 2000));
+    setPill("error");
+  };
+
+  document.getElementById("reload").onclick = loadAll;
+  document.getElementById("clearLog").onclick = function(){ clearLog(); };
+  document.getElementById("copyLog").onclick = function(){
+    try{
+      // Edge95では navigator.clipboard が無い場合があるので execCommand を使う
+      var ta = document.createElement("textarea");
+      ta.value = elLog.textContent;
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand("copy");
+      document.body.removeChild(ta);
+      log("OK: ログをクリップボードにコピーしました");
+    }catch(e){
+      log("コピー失敗: " + e);
+    }
+  };
+
+  elQ.onkeyup = function(){ renderLists(); };
+
+  bindClicks();
+  loadAll();
+})();
+</script>
+</body>
+</html>
