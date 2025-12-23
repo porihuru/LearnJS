@@ -20,17 +20,17 @@
 
     // ★最重要：リストのサーバー相対URL（直打ち）★
     // ブラウザのURL:
-    //   https://.../na/NA/NAFin/fin_csm/Lists/01/AllItems.aspx
+    //   https://.../na/N/NF/f_c/Lists/01/AllItems.aspx
     // からドメインを除いたこれを入れる：
-    //   /na/NA/NAFin/fin_csm/Lists/01
-    listServerRelativeUrl: "/na/NA/NAFin/fin_csm/Lists/01",
+    //   /na/N/NF/f_c/Lists/01
+    listServerRelativeUrl: "/na/N/NF/f_c/Lists/01",
 
     // GUID（任意。直打ち方式が動けば不要）
     listGuid: "",
 
     // 探索は基本0推奨（サインイン誘発を避ける）
     parentProbeMax: 0,
-    parentProbeStopAt: "/na/NA/NAFin",
+    parentProbeStopAt: "/na/N/NF",
 
     // Category が Choice 列なら true
     categoryIsChoice: true,
