@@ -1,4 +1,4 @@
-// app.js / 作成日時(JST): 2025-12-22 14:10:00
+// app.js / 作成日時(JST): 2025-12-23 11:05:00
 (function (global) {
   "use strict";
 
@@ -20,7 +20,6 @@
     AppState.loadedAt = Util.nowText();
     AppState.selectedIndex = 0;
 
-    // カテゴリ整合
     if (AppState.selectedCategory) {
       var ok = false;
       for (var i = 0; i < AppState.categories.length; i++) {
@@ -30,6 +29,13 @@
     }
 
     applyFilterAndRender();
+  }
+
+  function enableNavButtons() {
+    var btnPrev = Util.qs("#btnPrev");
+    var btnNext = Util.qs("#btnNext");
+    if (btnPrev) btnPrev.disabled = false;
+    if (btnNext) btnNext.disabled = false;
   }
 
   function loadCsvFallback(reasonLine) {
@@ -47,12 +53,10 @@
   }
 
   function trySharePointThenFallback() {
-    // DavWWWRoot注意
-    if (Util.isDavWWWRootUrl && Util.isDavWWWRootUrl()) {
-      Render.log("注意: DavWWWRoot 経由で開いている可能性があります。通常の https URL で開いてください。");
-    }
-
     Render.log("SharePoint接続試行: リスト『" + SP_CONFIG.listTitle + "』");
+
+    Render.log("SP_BASE version: " + (SP_BASE.version || "(none)"));
+    Render.log("SP_BASE source: " + (SP_BASE.source || "(none)") + " / contextStatus=" + (SP_BASE.contextStatus || 0));
     Render.log("SP webRoot: " + (SP_BASE.webRoot || "(空)"));
     Render.log("SP api: " + (SP_BASE.api || "(空)"));
 
@@ -66,13 +70,6 @@
     });
   }
 
-  function enableNavButtons() {
-    var btnPrev = Util.qs("#btnPrev");
-    var btnNext = Util.qs("#btnNext");
-    if (btnPrev) btnPrev.disabled = false;
-    if (btnNext) btnNext.disabled = false;
-  }
-
   function wireEvents() {
     var sel = Util.qs("#categorySelect");
     if (sel) sel.onchange = function () {
@@ -83,16 +80,11 @@
     };
 
     var btnPrint = Util.qs("#btnPrint");
-    if (btnPrint) btnPrint.onclick = function () {
-      global.print();
-    };
+    if (btnPrint) btnPrint.onclick = function () { global.print(); };
 
     var btnExport = Util.qs("#btnExportCsv");
-    if (btnExport) btnExport.onclick = function () {
-      Render.log("CSV出力は次フェーズで実装します。");
-    };
+    if (btnExport) btnExport.onclick = function () { Render.log("CSV出力は次フェーズで実装します。"); };
 
-    // 画面確認用の前後移動（出題ロジックは後で）
     var btnPrev = Util.qs("#btnPrev");
     var btnNext = Util.qs("#btnNext");
 
@@ -108,24 +100,25 @@
       Render.renderCurrentQuestion();
     };
 
-    // ランダム開始／ID指定開始（ロジックは次フェーズ）
     var btnR = Util.qs("#btnRandomStart");
-    if (btnR) btnR.onclick = function () {
-      Render.log("ランダムスタート: （ロジックは次フェーズで実装）");
-    };
+    if (btnR) btnR.onclick = function () { Render.log("ランダムスタート: （ロジックは次フェーズで実装）"); };
 
     var btnS = Util.qs("#btnStart");
-    if (btnS) btnS.onclick = function () {
-      Render.log("ID指定スタート: （ロジックは次フェーズで実装）");
-    };
+    if (btnS) btnS.onclick = function () { Render.log("ID指定スタート: （ロジックは次フェーズで実装）"); };
   }
 
   function init() {
     wireEvents();
     Render.clearLog();
     Render.renderStatus();
+
     Render.log("起動");
-    trySharePointThenFallback();
+
+    // ★ここが重要：SP_BASE が webRoot/api を自動検出してから SharePoint へ行く
+    SP_BASE.init(function () {
+      Render.renderStatus(); // build/sp_base表示を更新
+      trySharePointThenFallback();
+    });
   }
 
   if (document.readyState === "loading") {
