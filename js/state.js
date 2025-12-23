@@ -10,6 +10,11 @@
   // SharePoint接続設定（列内部名は環境に合わせて変更）
   var SP_CONFIG = {
     listTitle: "問題01",
+    
+    // ★これを追加★
+parentProbeMax: 0,   // 0=上位探索しない（サインイン要求を避ける）, 1=1段だけ上へ, 2=2段…
+// ★ここまで追加★
+    
     col: {
       qid: "QID",
       category: "Category",
