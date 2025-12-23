@@ -1,4 +1,4 @@
-// sp_questions.js / 作成日時(JST): 2025-12-23 11:55:00
+// sp_questions.js / 作成日時(JST): 2025-12-23 12:25:00
 (function (global) {
   "use strict";
 
@@ -23,10 +23,6 @@
   function xhrGetJson(url, onOk, onNg) {
     var x = new XMLHttpRequest();
     x.open("GET", url, true);
-
-    // 同一オリジンなら通常 cookie/認証は自動で載ります（withCredentials は不要）
-    // ※IEモード/環境により挙動差はあるが、ここでは触らない
-
     x.setRequestHeader("Accept", "application/json;odata=verbose");
 
     x.onreadystatechange = function () {
@@ -36,30 +32,17 @@
         var obj = null;
         try { obj = JSON.parse(x.responseText || "{}"); }
         catch (e2) {
-          onNg({
-            status: x.status,
-            statusText: "JSON parse failed: " + e2,
-            url: url,
-            bodyHead: String((x.responseText || "").slice(0, 200))
-          });
+          onNg({ status: x.status, statusText: "JSON parse failed: " + e2, url: url });
           return;
         }
-        onOk(obj, x);
+        onOk(obj);
         return;
       }
-
-      onNg({
-        status: x.status,
-        statusText: x.statusText || "",
-        url: url,
-        bodyHead: String((x.responseText || "").slice(0, 200))
-      });
+      onNg({ status: x.status, statusText: x.statusText || "", url: url });
     };
 
     try { x.send(null); }
-    catch (e3) {
-      onNg({ status: 0, statusText: "XHR send failed: " + e3, url: url, bodyHead: "" });
-    }
+    catch (e3) { onNg({ status: 0, statusText: "XHR send failed: " + e3, url: url }); }
   }
 
   function getVerboseResults(obj) {
@@ -104,7 +87,7 @@
       var question = toStr(it[c.question] || "");
       var explanation = toStr(it[c.explanation] || "");
 
-      var q = {
+      questions.push({
         id: id,
         category: category,
         question: question,
@@ -115,8 +98,8 @@
           { key: "Choice3", text: toStr(it[c.choice3] || "") },
           { key: "Choice4", text: toStr(it[c.choice4] || "") }
         ]
-      };
-      questions.push(q);
+      });
+
       if (category) catMap[category] = true;
     }
 
@@ -127,32 +110,52 @@
     return { questions: questions, categories: categories };
   }
 
-  function loadItemsAtApi(apiBase, listTitle, onOk, onErr) {
+  // タイトルで取得（日本語タイトルは “文字列をそのまま入れて、全体をencodeURI” が安定）
+  function loadByTitle(apiBase, listTitle, onOk, onErr) {
     var select = buildSelectQuery();
-    var encTitle = encodeURIComponent(listTitle);
+    var safeTitle = String(listTitle || "").replace(/'/g, "''"); // シングルクォート対策
 
     var url = apiBase +
-      "/web/lists/getbytitle('" + encTitle + "')/items" +
+      "/web/lists/getbytitle('" + safeTitle + "')/items" +
+      "?$top=5000&$select=" + encodeURIComponent(select);
+
+    url = encodeURI(url);
+
+    xhrGetJson(url, function (obj) {
+      var res = getVerboseResults(obj);
+      var items = (res && res.results) ? res.results : [];
+      onOk(items);
+    }, function (err) {
+      onErr(err);
+    });
+  }
+
+  // GUIDで取得（これが最も確実）
+  function loadByGuid(apiBase, listGuid, onOk, onErr) {
+    var select = buildSelectQuery();
+    var g = String(listGuid || "").replace(/[{}]/g, "").toUpperCase();
+
+    var url = apiBase +
+      "/web/lists(guid'" + g + "')/items" +
       "?$top=5000&$select=" + encodeURIComponent(select);
 
     xhrGetJson(url, function (obj) {
       var res = getVerboseResults(obj);
       var items = (res && res.results) ? res.results : [];
-      onOk(items, apiBase);
+      onOk(items);
     }, function (err) {
-      onErr(err, apiBase);
+      onErr(err);
     });
   }
 
   function loadWithLimitedHop(onOk, onFail) {
     var listTitle = toStr(SP_CONFIG.listTitle || "");
-    if (!listTitle) { onFail("SP_CONFIG.listTitle が空です"); return; }
+    var listGuid  = toStr(SP_CONFIG.listGuid  || "");
 
     var hopMax = 0;
     try { hopMax = parseInt(SP_CONFIG.parentProbeMax, 10); } catch (e0) { hopMax = 0; }
     if (!(hopMax >= 0)) hopMax = 0;
 
-    // ★重要：探索は最大 hopMax 段まで（デフォルト0＝探索しない）★
     var startWebRoot = trimEndSlash(SP_BASE.webRoot || "");
     var tries = [];
     var cur = startWebRoot;
@@ -167,7 +170,7 @@
 
     function nextTry() {
       if (idx >= tries.length) {
-        onFail("リスト『" + listTitle + "』が見つかりませんでした（探索上限=" + hopMax + "）。");
+        onFail("リストが見つかりません（探索上限=" + hopMax + "）。listTitle=" + listTitle + " listGuid=" + (listGuid ? "あり" : "なし"));
         return;
       }
 
@@ -178,45 +181,59 @@
         Render.log("SP list probe: webRoot=" + (webRoot || "(site-root)") + " api=" + apiBase);
       }
 
-      loadItemsAtApi(apiBase, listTitle, function (items, usedApi) {
-        // 成功：このapiが正解
-        if (usedApi !== SP_BASE.api) {
-          SP_BASE.webRoot = webRoot || "";
-          SP_BASE.api = usedApi;
-          SP_BASE.source = (SP_BASE.source || "") + " / override:foundList@" + (webRoot || "(site-root)");
-        }
-        onOk(items);
-      }, function (err, usedApi) {
-        var st = (err && typeof err.status === "number") ? err.status : -1;
+      // 1) まずタイトルで試す
+      if (listTitle) {
+        loadByTitle(apiBase, listTitle, function (items) {
+          onOk(items);
+        }, function (err) {
+          // 404なら GUID へ（設定されていれば）
+          if (err && err.status === 404 && listGuid) {
+            if (global.Render && Render.log) {
+              Render.log("getbytitle が 404。GUIDで再試行します。");
+            }
+            loadByGuid(apiBase, listGuid, function (items2) {
+              onOk(items2);
+            }, function (err2) {
+              // 404なら次のwebRootへ
+              if (err2 && err2.status === 404) { nextTry(); return; }
+              onFail("SharePoint接続失敗（GUID） status=" + (err2.status || "?") + " url=" + (err2.url || ""));
+            });
+            return;
+          }
 
-        // 404: このwebにはリストがない → 次へ（ただし hopMax=0 ならここで終了）
-        if (st === 404) {
-          nextTry();
-          return;
-        }
+          // 404なら次のwebRootへ
+          if (err && err.status === 404) { nextTry(); return; }
 
-        // 401/403 などは Windows 認証/権限でポップアップ誘発源になりやすい
-        // → これ以上の探索を止めてフォールバックへ（サインイン要求を避ける）
-        if (st === 401 || st === 403) {
-          onFail("SharePoint接続が認証/権限で拒否されました（status=" + st + "）。サインイン要求を避けるため探索を中止します。");
-          return;
-        }
+          // 認証/権限系はここで止める（サインイン誘発回避）
+          if (err && (err.status === 401 || err.status === 403)) {
+            onFail("SharePoint接続が認証/権限で拒否されました（status=" + err.status + "）。探索を中止します。");
+            return;
+          }
 
-        // その他エラーも中止（環境差で認証プロンプトが出ることがあるため）
-        onFail("SharePoint接続エラー（status=" + st + "）url=" + (err.url || ""));
-      });
+          onFail("SharePoint接続失敗（Title） status=" + (err.status || "?") + " url=" + (err.url || ""));
+        });
+        return;
+      }
+
+      // タイトルが無いなら GUID だけ
+      if (listGuid) {
+        loadByGuid(apiBase, listGuid, function (items3) {
+          onOk(items3);
+        }, function (err3) {
+          if (err3 && err3.status === 404) { nextTry(); return; }
+          onFail("SharePoint接続失敗（GUID） status=" + (err3.status || "?") + " url=" + (err3.url || ""));
+        });
+        return;
+      }
+
+      onFail("SP_CONFIG に listTitle も listGuid も設定されていません。");
     }
 
     nextTry();
   }
 
-  var SP_Questions = {
+  global.SP_Questions = {
     loadQuestions: function (success, failure) {
-      if (!global.SP_BASE || !SP_BASE.api) {
-        failure("SP_BASE.api が未確定です。SP_BASE.init() 後に呼んでください。");
-        return;
-      }
-
       loadWithLimitedHop(function (items) {
         success(normalizeQuestionsFromItems(items || []));
       }, function (msg) {
@@ -224,6 +241,4 @@
       });
     }
   };
-
-  global.SP_Questions = SP_Questions;
 })(window);
