@@ -1,27 +1,20 @@
-// sp_base.js / 作成日時(JST): 2025-12-23 11:05:00
+// sp_base.js / 作成日時(JST): 2025-12-23 11:20:00
 (function (global) {
   "use strict";
 
-  // 目的：
-  // - webRoot（/na/.../fin_csm 等）を「固定せず」自動検出
-  // - 最優先：SharePointが提供する _spPageContextInfo から取得
-  // - 無ければ：現在URLの上位階層へ順に /_api/contextinfo をプローブして特定
-  // - version / source / contextStatus を公開してログ・画面に表示可能にする
+  // 方針：
+  // 1) _spPageContextInfo があれば最優先で webRoot を確定
+  // 2) なければ現在URLから上位へ辿り /_api/contextinfo を probe
+  // 3) status=200 のときは JSONを解析し、GetContextWebInformation の
+  //    WebServerRelativeUrl / WebFullUrl から「本当の webRoot」を抽出して確定
+  //    （DocLib配下でも200を返す問題を解消）
+  // 4) version/source/contextStatus を表示可能にする
 
   function toStr(v) { return (v === undefined || v === null) ? "" : String(v); }
 
-  function parsePathFromAbsoluteUrl(absUrl) {
-    // URLオブジェクトが無い環境（IEモード想定）でも動くように aタグで解析
-    var a = document.createElement("a");
-    a.href = absUrl;
-    return a.pathname || "";
-  }
-
   function trimEndSlash(s) {
     s = toStr(s);
-    while (s.length > 1 && s.charAt(s.length - 1) === "/") {
-      s = s.substring(0, s.length - 1);
-    }
+    while (s.length > 1 && s.charAt(s.length - 1) === "/") s = s.substring(0, s.length - 1);
     return s;
   }
 
@@ -32,21 +25,26 @@
     return pathname.substring(0, i);
   }
 
+  function parsePathFromAbsoluteUrl(absUrl) {
+    // IEモードでも動く aタグ解析
+    var a = document.createElement("a");
+    a.href = absUrl;
+    return a.pathname || "";
+  }
+
   function splitPrefixes(dirPath, maxDepth) {
-    // dirPath から上位へ：/a/b/c -> [/a/b/c, /a/b, /a, ""(除外)]
     dirPath = trimEndSlash(dirPath);
     var out = [];
     var cur = dirPath;
     var guard = 0;
-    var limit = maxDepth || 12;
+    var limit = maxDepth || 14;
 
     while (cur && cur !== "/" && guard < limit) {
       out.push(cur);
       cur = dirname(cur);
       guard++;
     }
-    // 最後に "/" も候補に入れる（必要なら）
-    out.push("/");
+    out.push("/"); // 最後にルートも候補
     return out;
   }
 
@@ -65,9 +63,48 @@
     try { x.send(""); } catch (e2) { onDone(0, String(e2), null); }
   }
 
+  function tryFromPageContext() {
+    try {
+      if (global._spPageContextInfo) {
+        var w = toStr(global._spPageContextInfo.webServerRelativeUrl);
+        if (w) return { webRoot: w, source: "_spPageContextInfo.webServerRelativeUrl" };
+
+        var abs = toStr(global._spPageContextInfo.webAbsoluteUrl);
+        if (abs) return { webRoot: parsePathFromAbsoluteUrl(abs), source: "_spPageContextInfo.webAbsoluteUrl" };
+      }
+    } catch (e) {}
+    return null;
+  }
+
+  function tryExtractWebRootFromContextInfoJson(respText) {
+    // verbose: { d: { GetContextWebInformation: { WebFullUrl, SiteFullUrl, FormDigestValue... } } }
+    // ここから WebServerRelativeUrl または WebFullUrl を取り出す
+    try {
+      var obj = JSON.parse(respText);
+      var d = obj && obj.d ? obj.d : obj;
+      if (!d) return "";
+
+      var g = d.GetContextWebInformation;
+      if (!g) return "";
+
+      // SharePointの版により有無が違う可能性があるので両方対応
+      var wsr = toStr(g.WebServerRelativeUrl);
+      if (wsr) return wsr;
+
+      var wfu = toStr(g.WebFullUrl);
+      if (wfu) return parsePathFromAbsoluteUrl(wfu);
+
+      return "";
+    } catch (e) {
+      return "";
+    }
+  }
+
   function finish(webRoot, source, contextStatus) {
-    SP_BASE.webRoot = trimEndSlash(webRoot);
-    SP_BASE.api = (SP_BASE.webRoot === "/") ? "/_api" : (SP_BASE.webRoot + "/_api");
+    SP_BASE.webRoot = trimEndSlash(webRoot || "");
+    if (SP_BASE.webRoot === "/") SP_BASE.webRoot = ""; // "/" は空扱いに統一
+    SP_BASE.api = (SP_BASE.webRoot ? (SP_BASE.webRoot + "/_api") : "/_api");
+
     SP_BASE.source = source || "unknown";
     SP_BASE.contextStatus = contextStatus || 0;
     SP_BASE.isReady = true;
@@ -79,32 +116,12 @@
     }
   }
 
-  function tryFromPageContext() {
-    // SharePointクラシック系だと入っていることが多い
-    try {
-      if (global._spPageContextInfo) {
-        // webServerRelativeUrl が最優先（例：/na/NA/NAFin/fin_csm）
-        var w = toStr(global._spPageContextInfo.webServerRelativeUrl);
-        if (w) return { webRoot: w, source: "_spPageContextInfo.webServerRelativeUrl" };
-
-        // webAbsoluteUrl から pathname を取る
-        var abs = toStr(global._spPageContextInfo.webAbsoluteUrl);
-        if (abs) {
-          return { webRoot: parsePathFromAbsoluteUrl(abs), source: "_spPageContextInfo.webAbsoluteUrl" };
-        }
-      }
-    } catch (e) {}
-    return null;
-  }
-
   function probeByContextInfo(onOk, onFail) {
-    // 現在のディレクトリから上位へ順に /_api/contextinfo を叩いて存在確認
     var path = "/";
     try { path = toStr(global.location.pathname); } catch (e0) { path = "/"; }
 
-    var dir = dirname(path); // index.htmlのあるフォルダ
-    var prefixes = splitPrefixes(dir, 14);
-
+    var dir = dirname(path);
+    var prefixes = splitPrefixes(dir, 16);
     var idx = 0;
 
     function next() {
@@ -114,17 +131,31 @@
       }
 
       var p = prefixes[idx++];
-      // encodeURIで日本語パスも一応安全側へ（/ は保持）
-      var url = encodeURI(trimEndSlash(p) + "/_api/contextinfo");
+      var api = (p === "/" ? "/_api" : (trimEndSlash(p) + "/_api"));
+      var url = encodeURI(api + "/contextinfo");
 
       xhrPost(url, function (status, resp) {
-        // 200: OK
-        // 401/403: 権限等で失敗だが _api は存在する可能性が高い → webRoot特定としては採用
-        // 404: ここはwebRootではない
-        if (status === 200 || status === 401 || status === 403) {
-          onOk(p, "probe:/_api/contextinfo", status);
+        // 200ならJSONから本当のwebRootを抽出して確定（ここが今回の肝）
+        if (status === 200) {
+          var extracted = tryExtractWebRootFromContextInfoJson(resp);
+          if (extracted) {
+            onOk(extracted, "probe:contextinfo->extractWebRoot", 200);
+            return;
+          }
+          // 200でも抽出できない場合は暫定で p を使うが、次候補も試す
+          // （古い/特殊レスポンス対策）
+          onOk(p, "probe:contextinfo(200 but no extract)", 200);
           return;
         }
+
+        // 401/403 は「_api自体は存在する」可能性が高いが、webRoot確定材料に弱いので次も探す
+        if (status === 401 || status === 403) {
+          // 次候補も試す（より上位のwebが見つかる可能性）
+          next();
+          return;
+        }
+
+        // 404などは不採用
         next();
       });
     }
@@ -133,7 +164,7 @@
   }
 
   var SP_BASE = {
-    version: "sp_base-2025-12-23-1105",
+    version: "sp_base-2025-12-23-1120",
     webRoot: "",
     api: "",
     source: "",
@@ -150,22 +181,17 @@
       if (SP_BASE._started) return;
       SP_BASE._started = true;
 
-      // 1) pageContext優先
       var fromCtx = tryFromPageContext();
       if (fromCtx && fromCtx.webRoot) {
         finish(fromCtx.webRoot, fromCtx.source, 200);
         return;
       }
 
-      // 2) probe
       probeByContextInfo(function (webRoot, source, status) {
         finish(webRoot, source, status);
       }, function (reason) {
-        // 最終手段：現在ディレクトリの1つ上を webRoot として仮採用（ログで分かるように）
-        var path = "/";
-        try { path = toStr(global.location.pathname); } catch (e1) { path = "/"; }
-        var dir = dirname(path);
-        finish(dir, "fallback:dirname (NOT GUARANTEED) / " + reason, 0);
+        // 最終手段：確定できない場合は空（= /_api）で回す
+        finish("", "fallback:/_api / " + reason, 0);
       });
     }
   };
