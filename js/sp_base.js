@@ -1,4 +1,4 @@
-// sp_base.js / 作成日時(JST): 2025-12-23 10:30:00
+// sp_base.js / 作成日時(JST): 2025-12-23 10:35:00
 (function (global) {
   "use strict";
 
@@ -25,13 +25,13 @@
       return path.substring(0, m.index);
     }
 
-    // 互換：DocLib を含むが末尾に / が無い等のケース
+    // 互換：/DocLib1 があるのに末尾の / が無い等のケース
     var idx2 = path.toLowerCase().indexOf("/doclib");
     if (idx2 !== -1) {
       return path.substring(0, idx2);
     }
 
-    // 最終手段：現在ディレクトリ（＝ここは環境により不正になることがある）
+    // 最終手段：現在ディレクトリ
     var last = path.lastIndexOf("/");
     if (last > 0) return path.substring(0, last);
     return "";
@@ -41,6 +41,7 @@
   var api = webRoot ? (webRoot + "/_api") : "/_api";
 
   global.SP_BASE = {
+    version: "sp_base-2025-12-23-1035",
     webRoot: webRoot,
     api: api
   };
