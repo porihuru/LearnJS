@@ -1,65 +1,83 @@
-// util.js / 作成日時(JST): 2025-12-21 15:55:00
+/*
+  ファイル: js/util.js
+  作成日時(JST): 2025-12-24 20:30:00
+  VERSION: 20251224-01
+*/
 (function (global) {
   "use strict";
 
-  function qs(sel, root) {
-    return (root || document).querySelector(sel);
-  }
+  var Util = {};
 
-  function qsa(sel, root) {
-    return (root || document).querySelectorAll(sel);
-  }
+  Util.VERSION = "20251224-01";
 
-  function setText(el, text) {
-    if (!el) return;
-    el.textContent = (text === undefined || text === null) ? "" : String(text);
-  }
+  Util.ensureVersions = function () {
+    if (!global.__VERSIONS__) global.__VERSIONS__ = {};
+    return global.__VERSIONS__;
+  };
 
-  function escapeHTML(s) {
-    s = (s === undefined || s === null) ? "" : String(s);
+  Util.registerVersion = function (name, ver) {
+    var v = Util.ensureVersions();
+    v[name] = ver;
+  };
+
+  Util.qs = function (sel) { return document.querySelector(sel); };
+
+  Util.esc = function (s) {
+    s = (s === null || s === undefined) ? "" : String(s);
     return s
       .replace(/&/g, "&amp;")
       .replace(/</g, "&lt;")
       .replace(/>/g, "&gt;")
       .replace(/"/g, "&quot;")
       .replace(/'/g, "&#39;");
-  }
-
-  function nowText() {
-    var d = new Date();
-    var y = d.getFullYear();
-    var m = ("0" + (d.getMonth() + 1)).slice(-2);
-    var da = ("0" + d.getDate()).slice(-2);
-    var hh = ("0" + d.getHours()).slice(-2);
-    var mm = ("0" + d.getMinutes()).slice(-2);
-    var ss = ("0" + d.getSeconds()).slice(-2);
-    return y + "-" + m + "-" + da + " " + hh + ":" + mm + ":" + ss;
-  }
-
-  // 相対URLを絶対URLへ（Edge95/IEモードでも動く）
-  function resolveUrl(relativePath) {
-    var a = document.createElement("a");
-    a.href = relativePath;
-    return a.href;
-  }
-
-  function isDavWWWRootUrl(url) {
-    url = url || global.location.href;
-    return url.indexOf("DavWWWRoot") !== -1;
-  }
-
-  function pageInfoText() {
-    return "PAGE: " + global.location.href + "\nBASE: " + resolveUrl("./");
-  }
-
-  global.Util = {
-    qs: qs,
-    qsa: qsa,
-    setText: setText,
-    escapeHTML: escapeHTML,
-    nowText: nowText,
-    resolveUrl: resolveUrl,
-    isDavWWWRootUrl: isDavWWWRootUrl,
-    pageInfoText: pageInfoText
   };
+
+  Util.toInt = function (v, def) {
+    var n = parseInt(v, 10);
+    return isNaN(n) ? (def || 0) : n;
+  };
+
+  Util.nowStamp = function () {
+    // Edge95想定：toLocaleString で簡易
+    try {
+      return new Date().toLocaleString();
+    } catch (e) {
+      return String(new Date());
+    }
+  };
+
+  Util.cloneArray = function (arr) {
+    var out = [];
+    var i;
+    for (i = 0; i < arr.length; i++) out.push(arr[i]);
+    return out;
+  };
+
+  Util.shuffle = function (arr) {
+    // Fisher-Yates
+    var a = Util.cloneArray(arr);
+    for (var i = a.length - 1; i > 0; i--) {
+      var j = Math.floor(Math.random() * (i + 1));
+      var t = a[i];
+      a[i] = a[j];
+      a[j] = t;
+    }
+    return a;
+  };
+
+  Util.pickN = function (arr, n) {
+    if (n <= 0) return [];
+    if (n >= arr.length) return Util.cloneArray(arr);
+    var s = Util.shuffle(arr);
+    return s.slice(0, n);
+  };
+
+  Util.pad2 = function (n) {
+    n = String(n);
+    return (n.length < 2) ? ("0" + n) : n;
+  };
+
+  Util.registerVersion("util.js", Util.VERSION);
+  global.Util = Util;
+
 })(window);
