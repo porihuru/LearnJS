@@ -1,13 +1,13 @@
 /*
   ファイル: js/csv_loader.js
-  作成日時(JST): 2025-12-24 20:45:00
-  VERSION: 20251224-02
+  作成日時(JST): 2025-12-25 20:30:00
+  VERSION: 20251225-01
 */
 (function (global) {
   "use strict";
 
   var CSVLoader = {};
-  CSVLoader.VERSION = "20251224-02";
+  CSVLoader.VERSION = "20251225-01";
   Util.registerVersion("csv_loader.js", CSVLoader.VERSION);
 
   function xhrGetText(url, cb) {
@@ -23,7 +23,6 @@
 
   function stripBom(s) {
     if (!s) return s;
-    // 先頭がBOMの場合に除去
     if (s.charCodeAt(0) === 0xFEFF) return s.substring(1);
     return s;
   }
@@ -32,8 +31,7 @@
     s = (s === null || s === undefined) ? "" : String(s);
     s = stripBom(s);
     s = s.replace(/^\s+|\s+$/g, "");
-    s = s.toLowerCase();
-    return s;
+    return s.toLowerCase();
   }
 
   // CSVパーサ（ダブルクォート対応）
@@ -107,11 +105,26 @@
       return (fields[idx] === undefined || fields[idx] === null) ? "" : String(fields[idx]);
     }
 
-    var idRaw = getBy(cols.id);
-    var id = Util.toInt(idRaw, 0);
+    // ★IDは「表示用文字列(idText)」と「比較用数値(idNum)」を持つ
+    var idText = getBy(cols.id);
+    idText = (idText === null || idText === undefined) ? "" : String(idText).replace(/^\s+|\s+$/g, "");
+    var idNum = 0;
+
+    // IDが純粋数値ならそれを優先
+    var asInt = parseInt(idText, 10);
+    if (!isNaN(asInt) && String(asInt) === String(idText).replace(/^\s+|\s+$/g, "")) {
+      idNum = asInt;
+    } else {
+      // 末尾数字を抽出（例: FP3-0061 -> 61）
+      idNum = Util.extractLastInt(idText, 0);
+    }
 
     return {
-      id: id,
+      // 互換用
+      id: idText,        // 画面表示はこれ
+      idText: idText,
+      idNum: idNum,
+
       category: getBy(cols.category),
       question: getBy(cols.question),
       choice1: getBy(cols.choice1),
@@ -123,7 +136,6 @@
   }
 
   function getStartDir() {
-    // location.href から「最後の / まで」を取る（query/hash除去）
     var href = String(global.location && global.location.href ? global.location.href : "");
     href = href.split("#")[0].split("?")[0];
     var p = href.lastIndexOf("/");
@@ -132,7 +144,6 @@
   }
 
   function parentDir(dir) {
-    // dirは末尾/を想定
     var d = dir;
     if (d.length && d.charAt(d.length - 1) === "/") d = d.substring(0, d.length - 1);
     var p = d.lastIndexOf("/");
@@ -147,15 +158,11 @@
     xhrGetText(url, function (err, text) {
       if (!err) return cb(null, { url: url, text: text });
 
-      // 404なら上位階層へ
       if (err.status === 404 && depth < maxDepth) {
         var up = parentDir(dir);
-        // これ以上上がれない場合は終了
         if (up === dir) return cb(err, null);
         return tryLoadUpwards(up, fileName, depth + 1, maxDepth, cb);
       }
-
-      // それ以外は即失敗（401/403など）
       return cb(err, null);
     });
   }
@@ -167,7 +174,6 @@
     State.log("CSV読込開始: file=" + fileName);
     State.log("CSV探索開始: baseDir=" + startDir);
 
-    // 最大5階層まで上に探しに行く
     tryLoadUpwards(startDir, fileName, 0, 5, function (err, found) {
       if (err || !found) {
         State.log("CSV読込失敗: status=" + (err ? err.status : "?") + " url=" + (err ? err.url : "?"));
@@ -181,18 +187,24 @@
       }
 
       var headers = grid[0];
-      // ★BOM対策：先頭ヘッダがBOM付きでも一致するように normalizeRow 内で正規化済
-
       var cols = State.CONFIG.columns;
 
       var out = [];
       for (var r = 1; r < grid.length; r++) {
         var obj = normalizeRow(headers, cols, grid[r]);
-        if (!obj.question) continue; // 問題文なしは除外
+        if (!obj.question) continue;
         out.push(obj);
       }
 
-      out.sort(function (a, b) { return (a.id || 0) - (b.id || 0); });
+      // ★並びは idNum 優先（同値の場合は idText）
+      out.sort(function (a, b) {
+        var an = (a.idNum || 0), bn = (b.idNum || 0);
+        if (an !== bn) return an - bn;
+        var at = String(a.idText || ""), bt = String(b.idText || "");
+        if (at < bt) return -1;
+        if (at > bt) return 1;
+        return 0;
+      });
 
       State.App.rows = out;
       State.App.dataSource = "CSV:fallback";
@@ -200,7 +212,6 @@
 
       State.log("CSV読込成功: url=" + found.url);
       State.log("CSV読込成功: 件数=" + out.length);
-
       cb(null, out);
     });
   };
