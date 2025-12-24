@@ -1,13 +1,13 @@
 /*
   ファイル: js/app.js
-  作成日時(JST): 2025-12-24 20:30:00
-  VERSION: 20251224-01
+  作成日時(JST): 2025-12-25 20:30:00
+  VERSION: 20251225-01
 */
 (function (global) {
   "use strict";
 
   var App = {};
-  App.VERSION = "20251224-01";
+  App.VERSION = "20251225-01";
   Util.registerVersion("app.js", App.VERSION);
 
   function getSelectedCategory() {
@@ -83,30 +83,23 @@
     Render.renderFooter();
     Render.renderLogs();
 
-    // CSV読込
-    CSVLoader.loadFallback(function (err, rows) {
+    CSVLoader.loadFallback(function (err) {
       if (err) {
-        // CSVのみ運用：ここで止める（必要なら後で sampleCsv を読む導線を追加）
         Render.renderFooter();
         Render.renderQuestion();
         return;
       }
 
-      // カテゴリ生成
       Engine.buildCategories();
       Render.renderCategories();
 
-      // 初期表示（未開始状態）
       Render.renderFooter();
       Render.renderQuestion();
-
-      // 自動開始はしない（現状の挙動維持）
     });
   };
 
   global.App = App;
 
-  // 起動
   bindUI();
   App.init();
 
