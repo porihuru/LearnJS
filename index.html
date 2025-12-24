@@ -1,152 +1,110 @@
-<!-- index.html / 作成日時(JST): 2025-12-23 11:05:00 -->
-<!DOCTYPE html>
+<!--
+  ファイル: index.html
+  作成日時(JST): 2025-12-24 20:30:00
+  VERSION: 20251224-01
+-->
+<!doctype html>
 <html lang="ja">
 <head>
-  <meta charset="UTF-8" />
-  <meta http-equiv="X-UA-Compatible" content="IE=edge" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>text_access - Quiz</title>
-  <link rel="stylesheet" href="./style.css" />
+  <link rel="stylesheet" href="style.css?v=20251224-01">
 </head>
-
 <body>
-  <header class="app-header" role="banner">
-    <div class="app-header__row">
-      <div class="app-brand">
-        <div class="app-brand__title" id="appTitle">text_access</div>
-        <div class="app-brand__subtitle" id="appSubtitle">問題集</div>
+  <div class="page">
+    <header class="topHeader">
+      <div class="titleLeft">
+        <div class="appTitle">text_access問題集</div>
       </div>
-
-      <div class="app-status" aria-live="polite">
-        <span class="badge" title="アプリバージョン">BUILD: <span id="statusBuild">---</span></span>
-        <span class="badge" title="sp_baseバージョン">SP_BASE: <span id="statusSpBase">---</span></span>
-
-        <span class="badge" title="データソース">SOURCE: <span id="statusDataSource">---</span></span>
-        <span class="badge" title="件数">COUNT: <span id="statusCount">0</span></span>
-        <span class="badge" title="最終読込">LOAD: <span id="statusLoadedAt">---</span></span>
+      <div class="titleRight">
+        <!-- ここは現状デザイン維持のための表示枠（中身は下部に集約） -->
       </div>
-    </div>
+    </header>
 
-    <div class="toolbar" role="navigation" aria-label="操作">
-      <div class="toolbar__left">
-        <label class="field field--inline" for="categorySelect">
-          <span class="field__label">カテゴリ</span>
-          <select id="categorySelect" class="field__control">
-            <option value="">（すべて）</option>
+    <section class="toolbar">
+      <div class="toolbarRow">
+        <div class="toolGroup">
+          <label class="toolLabel">カテゴリ</label>
+          <select id="categorySelect" class="select">
+            <option value="__ALL__">（すべて）</option>
           </select>
-        </label>
+        </div>
 
-        <div class="start-controls" aria-label="開始設定">
-          <div class="start-block" aria-label="ランダム開始">
-            <input id="randCount" class="field__control field__control--num" type="number" inputmode="numeric" min="1" value="10" />
-            <span class="inline-text">問</span>
-            <button id="btnRandomStart" class="btn" type="button">ランダムスタート</button>
-          </div>
+        <!-- ランダム開始（外枠） -->
+        <div class="startBox" id="boxRandomStart">
+          <input id="randomCount" class="numInput" type="number" value="10" min="1" step="1">
+          <span class="toolText">問</span>
+          <button id="btnRandomStart" class="btnPrimary">ランダムスタート</button>
+        </div>
 
-          <div class="start-block" aria-label="ID指定開始">
-            <span class="inline-text inline-text--strong">ID</span>
-            <input id="startId" class="field__control field__control--num" type="number" inputmode="numeric" min="1" value="1" />
-            <span class="inline-text">から</span>
-            <input id="startCount" class="field__control field__control--num" type="number" inputmode="numeric" min="1" value="10" />
-            <span class="inline-text">問</span>
-            <button id="btnStart" class="btn" type="button">スタート</button>
-          </div>
+        <!-- ID指定開始（外枠） -->
+        <div class="startBox" id="boxIdStart">
+          <span class="toolText">ID</span>
+          <input id="startId" class="numInput" type="number" value="1" min="1" step="1">
+          <span class="toolText">から</span>
+          <input id="rangeCount" class="numInput" type="number" value="10" min="1" step="1">
+          <span class="toolText">問</span>
+          <button id="btnIdStart" class="btnPrimary">スタート</button>
         </div>
       </div>
+    </section>
 
-      <div class="toolbar__right">
-        <button id="btnPrint" class="btn btn--ghost" type="button">印刷</button>
-        <button id="btnExportCsv" class="btn btn--ghost" type="button">CSV</button>
+    <section class="quizArea">
+      <div class="sectionTitle">出題</div>
+
+      <div class="metaRow">
+        <div class="metaItem"><span class="metaLabel">ID:</span> <span id="metaId">（未読込）</span></div>
+        <div class="metaItem"><span class="metaLabel">カテゴリ:</span> <span id="metaCategory">（未読込）</span></div>
+        <div class="metaItem"><span class="metaLabel">状態:</span> <span id="metaStatus">未回答</span></div>
       </div>
-    </div>
-  </header>
 
-  <main class="app-main" role="main">
-    <div class="layout layout--single">
-      <section class="panel panel--quiz panel--full" aria-label="出題画面">
-        <div class="panel__header">
-          <div class="panel__title">出題</div>
-          <div class="panel__meta">
-            <span class="badge badge--soft" id="badgeProgress">
-              <span id="progressCurrent">0</span>/<span id="progressTotal">0</span>
-            </span>
-            <span class="badge badge--soft" id="badgeMode">
-              MODE: <span id="modeText">---</span>
-            </span>
-          </div>
-        </div>
+      <div class="qBlock">
+        <div class="qLabel">問題</div>
+        <div id="questionText" class="qText">（未読込）</div>
+      </div>
 
-        <div class="panel__body">
-          <div class="quiz-top">
-            <div class="kv">
-              <div class="kv__k">ID</div>
-              <div class="kv__v" id="quizId">-</div>
-            </div>
-            <div class="kv">
-              <div class="kv__k">カテゴリ</div>
-              <div class="kv__v" id="quizCategory">-</div>
-            </div>
-            <div class="kv">
-              <div class="kv__k">状態</div>
-              <div class="kv__v" id="quizState">未回答</div>
-            </div>
-          </div>
+      <div class="choiceHint">選択肢（毎回ランダム表示：機能は後で追加）</div>
 
-          <article class="quiz-card" aria-label="問題">
-            <div class="quiz-card__label">問題</div>
-            <div class="quiz-card__question" id="quizQuestion">（未読込）</div>
-          </article>
+      <div id="choices" class="choices">
+        <!-- 4択ボタンをJSで生成 -->
+      </div>
 
-          <section class="choices" aria-label="選択肢">
-            <div class="choices__label">選択肢（毎回ランダム表示：機能は後で追加）</div>
-            <div class="choices__grid" id="choicesGrid"></div>
+      <div class="actionRow">
+        <button id="btnToggleExplain" class="btnLink">解説を表示</button>
+        <button id="btnResetAnswer" class="btnLink">回答をリセット</button>
+      </div>
 
-            <div class="choices__actions">
-              <button id="btnShowAnswer" class="btn btn--ghost" type="button" disabled>解説を表示</button>
-              <button id="btnResetAnswer" class="btn btn--ghost" type="button" disabled>回答をリセット</button>
-            </div>
-          </section>
+      <div class="expBlock">
+        <div class="expTitle">解説</div>
+        <div id="explanationText" class="expText">(未表示)</div>
+      </div>
 
-          <details class="explain" id="explainBox">
-            <summary class="explain__summary">解説</summary>
-            <div class="explain__body" id="quizExplanation">（未読込）</div>
-          </details>
+      <div class="navRow">
+        <button id="btnPrev" class="btnNav">前へ</button>
+        <button id="btnNext" class="btnNav btnNavPrimary">次へ</button>
+      </div>
+    </section>
 
-          <div class="quiz-controls" aria-label="操作">
-            <button id="btnPrev" class="btn btn--ghost" type="button" disabled>前へ</button>
-            <button id="btnNext" class="btn" type="button" disabled>次へ</button>
-          </div>
+    <!-- 下部：ログ＋バージョン（要望どおり下に集約） -->
+    <section class="bottomArea">
+      <div class="logTitle">ログ</div>
+      <div id="logBox" class="logBox"></div>
 
-          <div class="notice" id="noticeBox" role="status" aria-live="polite">
-            <div class="notice__title" id="noticeTitle">ログ</div>
-            <div class="notice__body" id="noticeBody">起動時に SharePoint（問題01）へ接続を試行し、失敗時はCSVへ切替えます。</div>
-          </div>
-        </div>
-      </section>
-    </div>
-  </main>
+      <div class="footerBar">
+        <div id="versionLine" class="versionLine"></div>
+        <div id="dataLine" class="dataLine"></div>
+      </div>
+    </section>
+  </div>
 
-  <footer class="app-footer" role="contentinfo">
-    <div class="footer-row">
-      <div class="footer-item">BUILD: <span id="footerBuild">---</span></div>
-      <div class="footer-item">SP_BASE: <span id="footerSpBase">---</span></div>
-      <div class="footer-item">データ：<span id="footerDataSource">---</span></div>
-      <div class="footer-item">件数：<span id="footerCount">0</span></div>
-      <div class="footer-item">最終読込：<span id="footerLoadedAt">---</span></div>
-    </div>
-  </footer>
-
-  <!-- JS（キャッシュ回避を付けると切り分けが楽です） -->
-  <script src="./js/util.js"></script>
-  <script src="./js/state.js"></script>
-
-  <script src="./js/sp_base.js?v=202512231105"></script>
-  <script src="./js/sp_api.js?v=202512231105"></script>
-  <script src="./js/sp_questions.js?v=202512231105"></script>
-
-  <script src="./js/csv_loader.js"></script>
-  <script src="./js/engine.js"></script>
-  <script src="./js/render.js"></script>
-  <script src="./js/app.js"></script>
+  <!-- JS（機能別） -->
+  <script src="js/util.js?v=20251224-01"></script>
+  <script src="js/state.js?v=20251224-01"></script>
+  <script src="js/csv_loader.js?v=20251224-01"></script>
+  <script src="js/engine.js?v=20251224-01"></script>
+  <script src="js/render.js?v=20251224-01"></script>
+  <script src="js/app.js?v=20251224-01"></script>
 </body>
 </html>
