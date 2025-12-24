@@ -1,7 +1,7 @@
 <!--
   ファイル: index.html
-  作成日時(JST): 2025-12-24 20:45:00
-  VERSION: 20251224-02
+  作成日時(JST): 2025-12-25 20:30:00
+  VERSION: 20251225-01
 -->
 <!doctype html>
 <html lang="ja">
@@ -10,7 +10,7 @@
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>text_access - Quiz</title>
-  <link rel="stylesheet" href="style.css?v=20251224-01">
+  <link rel="stylesheet" href="style.css?v=20251225-01">
 </head>
 <body>
   <div class="page">
@@ -18,9 +18,7 @@
       <div class="titleLeft">
         <div class="appTitle">text_access問題集</div>
       </div>
-      <div class="titleRight">
-        <!-- ここは現状デザイン維持のための表示枠（中身は下部に集約） -->
-      </div>
+      <div class="titleRight"></div>
     </header>
 
     <section class="toolbar">
@@ -65,11 +63,9 @@
         <div id="questionText" class="qText">（未読込）</div>
       </div>
 
-      <div class="choiceHint">選択肢（毎回ランダム表示：機能は後で追加）</div>
+      <div class="choiceHint">選択肢（毎回ランダム表示）</div>
 
-      <div id="choices" class="choices">
-        <!-- 4択ボタンをJSで生成 -->
-      </div>
+      <div id="choices" class="choices"></div>
 
       <div class="actionRow">
         <button id="btnToggleExplain" class="btnLink">解説を表示</button>
@@ -87,7 +83,6 @@
       </div>
     </section>
 
-    <!-- 下部：ログ＋バージョン（要望どおり下に集約） -->
     <section class="bottomArea">
       <div class="logTitle">ログ</div>
       <div id="logBox" class="logBox"></div>
@@ -100,11 +95,11 @@
   </div>
 
   <!-- JS（機能別） -->
- <script src="js/util.js?v=20251224-01"></script>
-  <script src="js/state.js?v=20251224-02"></script>
-  <script src="js/csv_loader.js?v=20251224-02"></script>
-  <script src="js/engine.js?v=20251224-01"></script>
-  <script src="js/render.js?v=20251224-01"></script>
-  <script src="js/app.js?v=20251224-01"></script>
+  <script src="js/util.js?v=20251225-01"></script>
+  <script src="js/state.js?v=20251225-01"></script>
+  <script src="js/csv_loader.js?v=20251225-01"></script>
+  <script src="js/engine.js?v=20251225-01"></script>
+  <script src="js/render.js?v=20251225-01"></script>
+  <script src="js/app.js?v=20251225-01"></script>
 </body>
 </html>
