@@ -1,7 +1,7 @@
 /*
   ファイル: style.css
-  作成日時(JST): 2025-12-24 20:30:00
-  VERSION: 20251224-01
+  作成日時(JST): 2025-12-25 20:30:00
+  VERSION: 20251225-01
 */
 
 html, body {
@@ -13,7 +13,6 @@ html, body {
 }
 
 .page {
-  /* 右側の余白が出る「現状の雰囲気」を壊さない範囲で左右余白を確保 */
   max-width: 1200px;
   margin: 0 auto;
   padding: 14px 18px 24px 18px;
@@ -153,7 +152,7 @@ html, body {
   display: grid;
   grid-template-columns: 1fr;
   gap: 8px;
-  max-width: 360px; /* 左側に収める現状の印象 */
+  max-width: 360px;
 }
 
 .choiceBtn {
@@ -287,8 +286,6 @@ html, body {
   color: #222;
   white-space: pre-wrap;
   line-height: 1.45;
-
-  /* 現状の「下にログが溜まる」感じ */
   height: 160px;
   overflow: auto;
 }
