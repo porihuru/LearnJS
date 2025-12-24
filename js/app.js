@@ -1,129 +1,170 @@
-// app.js / 作成日時(JST): 2025-12-23 11:05:00
+/*
+  ファイル: js/render.js
+  作成日時(JST): 2025-12-24 20:30:00
+  VERSION: 20251224-01
+*/
 (function (global) {
   "use strict";
 
-  function applyFilterAndRender() {
-    AppState.visible = Engine.applyCategoryFilter(AppState.questions, AppState.selectedCategory);
+  var Render = {};
+  Render.VERSION = "20251224-01";
+  Util.registerVersion("render.js", Render.VERSION);
 
-    if (AppState.selectedIndex >= AppState.visible.length) AppState.selectedIndex = 0;
-    if (AppState.selectedIndex < 0) AppState.selectedIndex = 0;
+  Render.log = function (msg) {
+    State.log(msg);
+  };
 
-    Render.renderStatus();
-    Render.renderCategorySelect();
-    Render.renderCurrentQuestion();
+  function setText(id, text) {
+    var el = document.getElementById(id);
+    if (!el) return;
+    el.textContent = (text === undefined || text === null) ? "" : String(text);
   }
 
-  function setQuestions(norm, sourceLabel) {
-    AppState.questions = norm.questions || [];
-    AppState.categories = norm.categories || [];
-    AppState.dataSource = sourceLabel || "---";
-    AppState.loadedAt = Util.nowText();
-    AppState.selectedIndex = 0;
+  function clearChoices() {
+    var wrap = document.getElementById("choices");
+    if (!wrap) return;
+    while (wrap.firstChild) wrap.removeChild(wrap.firstChild);
+  }
 
-    if (AppState.selectedCategory) {
-      var ok = false;
-      for (var i = 0; i < AppState.categories.length; i++) {
-        if (AppState.categories[i] === AppState.selectedCategory) { ok = true; break; }
-      }
-      if (!ok) AppState.selectedCategory = "";
+  function createChoiceButton(choice, isSelected, mark) {
+    // mark: "correct" | "wrong" | ""
+    var btn = document.createElement("div");
+    btn.className = "choiceBtn";
+    if (isSelected) btn.className += " isSelected";
+    if (mark === "correct") btn.className += " isCorrect";
+    if (mark === "wrong") btn.className += " isWrong";
+
+    var key = document.createElement("span");
+    key.className = "choiceKey";
+    key.textContent = choice.key;
+
+    var txt = document.createElement("span");
+    txt.className = "choiceText";
+    txt.textContent = choice.text;
+
+    btn.appendChild(key);
+    btn.appendChild(txt);
+
+    btn.setAttribute("data-choice-text", choice.text);
+
+    return btn;
+  }
+
+  Render.renderCategories = function () {
+    var sel = document.getElementById("categorySelect");
+    if (!sel) return;
+
+    // 先頭は（すべて）
+    while (sel.options.length > 1) sel.remove(1);
+
+    var cats = State.App.categories || [];
+    for (var i = 0; i < cats.length; i++) {
+      var opt = document.createElement("option");
+      opt.value = cats[i];
+      opt.textContent = cats[i];
+      sel.appendChild(opt);
+    }
+  };
+
+  Render.renderQuestion = function () {
+    var cur = Engine.getCurrent();
+    if (!cur) {
+      setText("metaId", "（未読込）");
+      setText("metaCategory", "（未読込）");
+      setText("metaStatus", "未回答");
+      setText("questionText", "（未読込）");
+      setText("explanationText", "(未表示)");
+      clearChoices();
+      Render.renderNav();
+      return;
     }
 
-    applyFilterAndRender();
-  }
+    var row = cur.row;
+    var ans = cur.ans;
 
-  function enableNavButtons() {
-    var btnPrev = Util.qs("#btnPrev");
-    var btnNext = Util.qs("#btnNext");
-    if (btnPrev) btnPrev.disabled = false;
-    if (btnNext) btnNext.disabled = false;
-  }
+    setText("metaId", row.id);
+    setText("metaCategory", row.category || "");
+    setText("questionText", row.question || "");
 
-  function loadCsvFallback(reasonLine) {
-    Render.log("CSVフォールバック開始: " + (reasonLine || ""));
-    CsvLoader.loadFallback(function (norm) {
-      setQuestions(norm, "CSV:fallback");
-      Render.log("CSV読込成功: 件数=" + AppState.questions.length);
-      enableNavButtons();
-    }, function (errMsg) {
-      AppState.dataSource = "CSV:fallback(失敗)";
-      AppState.loadedAt = Util.nowText();
-      Render.renderStatus();
-      Render.log("CSV読込失敗:\n" + errMsg);
-    });
-  }
+    // 状態表示
+    var st = "未回答";
+    if (ans.isAnswered) st = ans.isCorrect ? "正解" : "不正解";
+    setText("metaStatus", st);
 
-  function trySharePointThenFallback() {
-    Render.log("SharePoint接続試行: リスト『" + SP_CONFIG.listTitle + "』");
+    // 解説表示（トグル）
+    if (State.App.ui.showExplain) {
+      setText("explanationText", row.explanation || "");
+    } else {
+      setText("explanationText", "(未表示)");
+    }
 
-    Render.log("SP_BASE version: " + (SP_BASE.version || "(none)"));
-    Render.log("SP_BASE source: " + (SP_BASE.source || "(none)") + " / contextStatus=" + (SP_BASE.contextStatus || 0));
-    Render.log("SP webRoot: " + (SP_BASE.webRoot || "(空)"));
-    Render.log("SP api: " + (SP_BASE.api || "(空)"));
+    // choices
+    clearChoices();
+    var wrap = document.getElementById("choices");
+    if (!wrap) return;
 
-    SP_Questions.loadQuestions(function (norm) {
-      setQuestions(norm, "SP:" + SP_CONFIG.listTitle);
-      Render.log("SharePoint読込成功: 件数=" + AppState.questions.length);
-      enableNavButtons();
-    }, function (errMsg) {
-      Render.log("SharePoint接続失敗。理由:\n" + errMsg);
-      loadCsvFallback("SharePoint接続に失敗したため");
-    });
-  }
+    for (var i = 0; i < ans.options.length; i++) {
+      var opt = ans.options[i];
+      var selected = (ans.isAnswered && String(opt.text) === String(ans.selectedText));
 
-  function wireEvents() {
-    var sel = Util.qs("#categorySelect");
-    if (sel) sel.onchange = function () {
-      AppState.selectedCategory = sel.value || "";
-      AppState.selectedIndex = 0;
-      applyFilterAndRender();
-      Render.log("カテゴリ変更: " + (AppState.selectedCategory || "(すべて)"));
-    };
+      var mark = "";
+      if (ans.isAnswered && selected) {
+        mark = ans.isCorrect ? "correct" : "wrong";
+      }
 
-    var btnPrint = Util.qs("#btnPrint");
-    if (btnPrint) btnPrint.onclick = function () { global.print(); };
+      var btn = createChoiceButton(opt, selected, mark);
 
-    var btnExport = Util.qs("#btnExportCsv");
-    if (btnExport) btnExport.onclick = function () { Render.log("CSV出力は次フェーズで実装します。"); };
+      // クリックで回答
+      (function (choiceText) {
+        btn.onclick = function () {
+          Engine.selectAnswer(choiceText);
+          Render.renderQuestion();
+          Render.renderNav();
+        };
+      })(opt.text);
 
-    var btnPrev = Util.qs("#btnPrev");
-    var btnNext = Util.qs("#btnNext");
+      wrap.appendChild(btn);
+    }
 
-    if (btnPrev) btnPrev.onclick = function () {
-      if (!AppState.visible || AppState.visible.length === 0) return;
-      AppState.selectedIndex = Math.max(0, AppState.selectedIndex - 1);
-      Render.renderCurrentQuestion();
-    };
+    Render.renderNav();
+  };
 
-    if (btnNext) btnNext.onclick = function () {
-      if (!AppState.visible || AppState.visible.length === 0) return;
-      AppState.selectedIndex = Math.min(AppState.visible.length - 1, AppState.selectedIndex + 1);
-      Render.renderCurrentQuestion();
-    };
+  Render.renderNav = function () {
+    var prev = document.getElementById("btnPrev");
+    var next = document.getElementById("btnNext");
+    if (prev) prev.disabled = !Engine.canPrev();
+    if (next) next.disabled = !Engine.canNext();
+  };
 
-    var btnR = Util.qs("#btnRandomStart");
-    if (btnR) btnR.onclick = function () { Render.log("ランダムスタート: （ロジックは次フェーズで実装）"); };
+  Render.renderLogs = function () {
+    var box = document.getElementById("logBox");
+    if (!box) return;
 
-    var btnS = Util.qs("#btnStart");
-    if (btnS) btnS.onclick = function () { Render.log("ID指定スタート: （ロジックは次フェーズで実装）"); };
-  }
+    var lines = State.App.logs || [];
+    box.textContent = lines.join("\n");
 
-  function init() {
-    wireEvents();
-    Render.clearLog();
-    Render.renderStatus();
+    // 常に末尾へ
+    try { box.scrollTop = box.scrollHeight; } catch (e) {}
+  };
 
-    Render.log("起動");
+  Render.renderFooter = function () {
+    var vLine = document.getElementById("versionLine");
+    var dLine = document.getElementById("dataLine");
 
-    // ★ここが重要：SP_BASE が webRoot/api を自動検出してから SharePoint へ行く
-    SP_BASE.init(function () {
-      Render.renderStatus(); // build/sp_base表示を更新
-      trySharePointThenFallback();
-    });
-  }
+    if (vLine) {
+      vLine.textContent =
+        "BUILD: " + State.App.build +
+        " / JS: " + State.getAllVersions();
+    }
 
-  if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", init);
-  } else {
-    init();
-  }
+    if (dLine) {
+      dLine.textContent =
+        "データ: " + State.App.dataSource +
+        " / 件数: " + (State.App.rows ? State.App.rows.length : 0) +
+        " / 最終読込: " + (State.App.lastLoadedAt || "—");
+    }
+  };
+
+  global.Render = Render;
+
 })(window);
