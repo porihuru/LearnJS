@@ -1,17 +1,16 @@
 /*
   ファイル: js/engine.js
-  作成日時(JST): 2025-12-24 20:30:00
-  VERSION: 20251224-01
+  作成日時(JST): 2025-12-25 20:30:00
+  VERSION: 20251225-01
 */
 (function (global) {
   "use strict";
 
   var Engine = {};
-  Engine.VERSION = "20251224-01";
+  Engine.VERSION = "20251225-01";
   Util.registerVersion("engine.js", Engine.VERSION);
 
   function buildChoices(row) {
-    // 正解は常に Choice1
     var correctText = row.choice1;
 
     var options = [
@@ -21,12 +20,10 @@
       { key: "D", text: row.choice4 }
     ];
 
-    // 空の選択肢は除外しない（デザイン維持）。ただし text が全部空なら保険。
     var any = false;
     for (var i = 0; i < options.length; i++) if (String(options[i].text || "").trim() !== "") any = true;
     if (!any) options[0].text = "(選択肢なし)";
 
-    // 表示順をシャッフル（1問ごとに固定）
     var shuffled = Util.shuffle(options);
 
     return {
@@ -50,15 +47,9 @@
   function makeSession(rows) {
     var items = [];
     for (var i = 0; i < rows.length; i++) {
-      items.push({
-        row: rows[i],
-        ans: buildChoices(rows[i])
-      });
+      items.push({ row: rows[i], ans: buildChoices(rows[i]) });
     }
-    return {
-      items: items,
-      index: 0
-    };
+    return { items: items, index: 0 };
   }
 
   Engine.buildCategories = function () {
@@ -68,10 +59,7 @@
     for (var i = 0; i < rows.length; i++) {
       var c = rows[i].category || "";
       if (!c) continue;
-      if (!map[c]) {
-        map[c] = true;
-        list.push(c);
-      }
+      if (!map[c]) { map[c] = true; list.push(c); }
     }
     list.sort();
     State.App.categories = list;
@@ -85,25 +73,25 @@
     var picked = Util.pickN(rows, n);
     State.App.session = makeSession(picked);
 
-    State.log("出題開始(ランダム): category=" + (category === "__ALL__" ? "ALL" : category) + " count=" + n);
+    State.log("出題開始(ランダム): category=" + (category === "__ALL__" ? "ALL" : category) + " count=" + n + " actual=" + picked.length);
   };
 
+  // ★修正：ID指定は idNum（末尾数字）で比較
   Engine.startFromId = function (category, startId, count) {
     var rows = filterByCategory(State.App.rows, category);
     var sid = Util.toInt(startId, 1);
     var n = Util.toInt(count, 10);
     if (n <= 0) n = 10;
 
-    // IDでソート済前提
     var picked = [];
     for (var i = 0; i < rows.length; i++) {
-      if ((rows[i].id || 0) >= sid) picked.push(rows[i]);
+      var num = (rows[i].idNum || 0);
+      if (num >= sid) picked.push(rows[i]);
       if (picked.length >= n) break;
     }
 
     State.App.session = makeSession(picked);
-
-    State.log("出題開始(ID指定): category=" + (category === "__ALL__" ? "ALL" : category) + " startId=" + sid + " count=" + n);
+    State.log("出題開始(ID指定): category=" + (category === "__ALL__" ? "ALL" : category) + " startId=" + sid + " count=" + n + " actual=" + picked.length);
   };
 
   Engine.getCurrent = function () {
@@ -146,18 +134,16 @@
     ans.isCorrect = (String(choiceText || "") === String(ans.correctText || ""));
 
     var row = cur.row;
-    State.log("回答: ID=" + row.id + " 選択=" + (choiceText || "") + " 正誤=" + (ans.isCorrect ? "正解" : "不正解"));
+    State.log("回答: ID=" + (row.idText || row.id || "") + " 選択=" + (choiceText || "") + " 正誤=" + (ans.isCorrect ? "正解" : "不正解"));
   };
 
   Engine.resetAnswer = function () {
     var cur = Engine.getCurrent();
     if (!cur) return;
 
-    // リセット時は選択肢も再シャッフル（「毎回ランダム」に寄せる）
     cur.ans = buildChoices(cur.row);
-
     var row = cur.row;
-    State.log("回答リセット: ID=" + row.id);
+    State.log("回答リセット: ID=" + (row.idText || row.id || ""));
   };
 
   global.Engine = Engine;
