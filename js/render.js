@@ -1,18 +1,16 @@
 /*
   ファイル: js/render.js
-  作成日時(JST): 2025-12-24 20:30:00
-  VERSION: 20251224-01
+  作成日時(JST): 2025-12-25 20:30:00
+  VERSION: 20251225-01
 */
 (function (global) {
   "use strict";
 
   var Render = {};
-  Render.VERSION = "20251224-01";
+  Render.VERSION = "20251225-01";
   Util.registerVersion("render.js", Render.VERSION);
 
-  Render.log = function (msg) {
-    State.log(msg);
-  };
+  Render.log = function (msg) { State.log(msg); };
 
   function setText(id, text) {
     var el = document.getElementById(id);
@@ -27,7 +25,6 @@
   }
 
   function createChoiceButton(choice, isSelected, mark) {
-    // mark: "correct" | "wrong" | ""
     var btn = document.createElement("div");
     btn.className = "choiceBtn";
     if (isSelected) btn.className += " isSelected";
@@ -44,7 +41,6 @@
 
     btn.appendChild(key);
     btn.appendChild(txt);
-
     btn.setAttribute("data-choice-text", choice.text);
 
     return btn;
@@ -53,8 +49,6 @@
   Render.renderCategories = function () {
     var sel = document.getElementById("categorySelect");
     if (!sel) return;
-
-    // 先頭は（すべて）
     while (sel.options.length > 1) sel.remove(1);
 
     var cats = State.App.categories || [];
@@ -82,23 +76,18 @@
     var row = cur.row;
     var ans = cur.ans;
 
-    setText("metaId", row.id);
+    // ★IDは文字列表示（FP3-0001等）
+    setText("metaId", row.idText || row.id || "");
     setText("metaCategory", row.category || "");
     setText("questionText", row.question || "");
 
-    // 状態表示
     var st = "未回答";
     if (ans.isAnswered) st = ans.isCorrect ? "正解" : "不正解";
     setText("metaStatus", st);
 
-    // 解説表示（トグル）
-    if (State.App.ui.showExplain) {
-      setText("explanationText", row.explanation || "");
-    } else {
-      setText("explanationText", "(未表示)");
-    }
+    if (State.App.ui.showExplain) setText("explanationText", row.explanation || "");
+    else setText("explanationText", "(未表示)");
 
-    // choices
     clearChoices();
     var wrap = document.getElementById("choices");
     if (!wrap) return;
@@ -106,15 +95,10 @@
     for (var i = 0; i < ans.options.length; i++) {
       var opt = ans.options[i];
       var selected = (ans.isAnswered && String(opt.text) === String(ans.selectedText));
-
       var mark = "";
-      if (ans.isAnswered && selected) {
-        mark = ans.isCorrect ? "correct" : "wrong";
-      }
+      if (ans.isAnswered && selected) mark = ans.isCorrect ? "correct" : "wrong";
 
       var btn = createChoiceButton(opt, selected, mark);
-
-      // クリックで回答
       (function (choiceText) {
         btn.onclick = function () {
           Engine.selectAnswer(choiceText);
@@ -142,8 +126,6 @@
 
     var lines = State.App.logs || [];
     box.textContent = lines.join("\n");
-
-    // 常に末尾へ
     try { box.scrollTop = box.scrollHeight; } catch (e) {}
   };
 
@@ -152,11 +134,8 @@
     var dLine = document.getElementById("dataLine");
 
     if (vLine) {
-      vLine.textContent =
-        "BUILD: " + State.App.build +
-        " / JS: " + State.getAllVersions();
+      vLine.textContent = "BUILD: " + State.App.build + " / JS: " + State.getAllVersions();
     }
-
     if (dLine) {
       dLine.textContent =
         "データ: " + State.App.dataSource +
