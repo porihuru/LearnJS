@@ -1,17 +1,15 @@
 /*
   ファイル: js/state.js
-  作成日時(JST): 2025-12-24 20:45:00
-  VERSION: 20251224-02
+  作成日時(JST): 2025-12-25 20:30:00
+  VERSION: 20251225-01
 */
 (function (global) {
   "use strict";
 
   var State = {};
-
-  State.VERSION = "20251224-02";
+  State.VERSION = "20251225-01";
   Util.registerVersion("state.js", State.VERSION);
 
-  // CSV専用（列名は従来どおり）
   State.CONFIG = {
     data: {
       fallbackCsv: "questions_fallback.csv",
@@ -30,7 +28,7 @@
   };
 
   State.App = {
-    build: "app-20251224-02",
+    build: "app-20251225-01",
     dataSource: "CSV:fallback",
     lastLoadedAt: "",
     rows: [],
