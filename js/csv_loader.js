@@ -1,74 +1,210 @@
 /*
-  ファイル: js/state.js
-  作成日時(JST): 2025-12-24 20:30:00
-  VERSION: 20251224-01
+  ファイル: js/csv_loader.js
+  作成日時(JST): 2025-12-24 20:45:00
+  VERSION: 20251224-02
 */
 (function (global) {
   "use strict";
 
-  var State = {};
+  var CSVLoader = {};
+  CSVLoader.VERSION = "20251224-02";
+  Util.registerVersion("csv_loader.js", CSVLoader.VERSION);
 
-  State.VERSION = "20251224-01";
-  Util.registerVersion("state.js", State.VERSION);
+  function xhrGetText(url, cb) {
+    var x = new XMLHttpRequest();
+    x.open("GET", url, true);
+    x.onreadystatechange = function () {
+      if (x.readyState !== 4) return;
+      if (x.status >= 200 && x.status < 300) return cb(null, x.responseText);
+      cb({ status: x.status, url: url }, null);
+    };
+    try { x.send(null); } catch (e) { cb({ status: 0, url: url, error: e }, null); }
+  }
 
-  // CSV専用（列名は従来どおり）
-  State.CONFIG = {
-    data: {
-      fallbackCsv: "questions_fallback.csv",
-      sampleCsv: "questions_sample.csv" // 将来用（今は未使用でもOK）
-    },
-    columns: {
-      // CSVヘッダの揺れを吸収（ID / QID どちらでもOK）
-      id: ["ID", "QID"],
-      category: ["Category"],
-      question: ["Question"],
-      choice1: ["Choice1"],
-      choice2: ["Choice2"],
-      choice3: ["Choice3"],
-      choice4: ["Choice4"],
-      explanation: ["Explanation"]
+  function stripBom(s) {
+    if (!s) return s;
+    // 先頭がBOMの場合に除去
+    if (s.charCodeAt(0) === 0xFEFF) return s.substring(1);
+    return s;
+  }
+
+  function normHeader(s) {
+    s = (s === null || s === undefined) ? "" : String(s);
+    s = stripBom(s);
+    s = s.replace(/^\s+|\s+$/g, "");
+    s = s.toLowerCase();
+    return s;
+  }
+
+  // CSVパーサ（ダブルクォート対応）
+  function parseCSV(text) {
+    var rows = [];
+    var i = 0;
+    var field = "";
+    var row = [];
+    var inQuotes = false;
+
+    function pushField() { row.push(field); field = ""; }
+    function pushRow() {
+      var allEmpty = true;
+      for (var k = 0; k < row.length; k++) {
+        if (String(row[k] || "").replace(/^\s+|\s+$/g, "") !== "") { allEmpty = false; break; }
+      }
+      if (!allEmpty) rows.push(row);
+      row = [];
     }
-  };
 
-  State.App = {
-    build: "app-20251224-01",
-    dataSource: "CSV:fallback",
-    lastLoadedAt: "",
-    rows: [],          // 全問題（正規化済）
-    categories: [],    // カテゴリ一覧
-    session: null,     // 出題セッション
-    ui: {
-      showExplain: false
-    },
-    logs: []           // 画面下部ログ
-  };
+    while (i < text.length) {
+      var ch = text.charAt(i);
 
-  // ログ追加（回答状態も含める）
-  State.log = function (msg) {
-    var line = "[" + Util.nowStamp() + "] " + msg;
-    State.App.logs.push(line);
-    if (global.Render && Render.renderLogs) Render.renderLogs();
-  };
-
-  State.getAllVersions = function () {
-    var v = global.__VERSIONS__ || {};
-    // file順（見やすさ優先）
-    var order = ["util.js", "state.js", "csv_loader.js", "engine.js", "render.js", "app.js"];
-    var parts = [];
-    for (var i = 0; i < order.length; i++) {
-      var k = order[i];
-      if (v[k]) parts.push(k + ":" + v[k]);
+      if (inQuotes) {
+        if (ch === '"') {
+          var next = text.charAt(i + 1);
+          if (next === '"') { field += '"'; i += 2; continue; }
+          inQuotes = false; i++; continue;
+        }
+        field += ch; i++; continue;
+      } else {
+        if (ch === '"') { inQuotes = true; i++; continue; }
+        if (ch === ",") { pushField(); i++; continue; }
+        if (ch === "\r") {
+          pushField(); pushRow();
+          if (text.charAt(i + 1) === "\n") i += 2; else i++;
+          continue;
+        }
+        if (ch === "\n") { pushField(); pushRow(); i++; continue; }
+        field += ch; i++;
+      }
     }
-    // 追加分があれば末尾に
-    for (var kk in v) {
-      if (!v.hasOwnProperty(kk)) continue;
-      var found = false;
-      for (var j = 0; j < order.length; j++) if (order[j] === kk) found = true;
-      if (!found) parts.push(kk + ":" + v[kk]);
+
+    pushField(); pushRow();
+    return rows;
+  }
+
+  function buildHeaderIndexMap(headers) {
+    var map = {};
+    for (var i = 0; i < headers.length; i++) {
+      var key = normHeader(headers[i]);
+      if (key && map[key] === undefined) map[key] = i;
     }
-    return parts.join(" / ");
+    return map;
+  }
+
+  function findIndex(map, candidates) {
+    for (var i = 0; i < candidates.length; i++) {
+      var k = normHeader(candidates[i]);
+      if (map[k] !== undefined) return map[k];
+    }
+    return -1;
+  }
+
+  function normalizeRow(headers, cols, fields) {
+    var map = buildHeaderIndexMap(headers);
+
+    function getBy(candidates) {
+      var idx = findIndex(map, candidates);
+      if (idx < 0) return "";
+      return (fields[idx] === undefined || fields[idx] === null) ? "" : String(fields[idx]);
+    }
+
+    var idRaw = getBy(cols.id);
+    var id = Util.toInt(idRaw, 0);
+
+    return {
+      id: id,
+      category: getBy(cols.category),
+      question: getBy(cols.question),
+      choice1: getBy(cols.choice1),
+      choice2: getBy(cols.choice2),
+      choice3: getBy(cols.choice3),
+      choice4: getBy(cols.choice4),
+      explanation: getBy(cols.explanation)
+    };
+  }
+
+  function getStartDir() {
+    // location.href から「最後の / まで」を取る（query/hash除去）
+    var href = String(global.location && global.location.href ? global.location.href : "");
+    href = href.split("#")[0].split("?")[0];
+    var p = href.lastIndexOf("/");
+    if (p < 0) return href;
+    return href.substring(0, p + 1);
+  }
+
+  function parentDir(dir) {
+    // dirは末尾/を想定
+    var d = dir;
+    if (d.length && d.charAt(d.length - 1) === "/") d = d.substring(0, d.length - 1);
+    var p = d.lastIndexOf("/");
+    if (p < 0) return dir;
+    return d.substring(0, p + 1);
+  }
+
+  function tryLoadUpwards(dir, fileName, depth, maxDepth, cb) {
+    var url = dir + fileName;
+    State.log("CSV探索: try depth=" + depth + " url=" + url);
+
+    xhrGetText(url, function (err, text) {
+      if (!err) return cb(null, { url: url, text: text });
+
+      // 404なら上位階層へ
+      if (err.status === 404 && depth < maxDepth) {
+        var up = parentDir(dir);
+        // これ以上上がれない場合は終了
+        if (up === dir) return cb(err, null);
+        return tryLoadUpwards(up, fileName, depth + 1, maxDepth, cb);
+      }
+
+      // それ以外は即失敗（401/403など）
+      return cb(err, null);
+    });
+  }
+
+  CSVLoader.loadFallback = function (cb) {
+    var fileName = State.CONFIG.data.fallbackCsv;
+    var startDir = getStartDir();
+
+    State.log("CSV読込開始: file=" + fileName);
+    State.log("CSV探索開始: baseDir=" + startDir);
+
+    // 最大5階層まで上に探しに行く
+    tryLoadUpwards(startDir, fileName, 0, 5, function (err, found) {
+      if (err || !found) {
+        State.log("CSV読込失敗: status=" + (err ? err.status : "?") + " url=" + (err ? err.url : "?"));
+        return cb(err || { status: 0, url: "unknown" }, null);
+      }
+
+      var grid = parseCSV(found.text);
+      if (!grid.length) {
+        State.log("CSV読込失敗: 空です url=" + found.url);
+        return cb({ status: 0, url: found.url, message: "empty" }, null);
+      }
+
+      var headers = grid[0];
+      // ★BOM対策：先頭ヘッダがBOM付きでも一致するように normalizeRow 内で正規化済
+
+      var cols = State.CONFIG.columns;
+
+      var out = [];
+      for (var r = 1; r < grid.length; r++) {
+        var obj = normalizeRow(headers, cols, grid[r]);
+        if (!obj.question) continue; // 問題文なしは除外
+        out.push(obj);
+      }
+
+      out.sort(function (a, b) { return (a.id || 0) - (b.id || 0); });
+
+      State.App.rows = out;
+      State.App.dataSource = "CSV:fallback";
+      State.App.lastLoadedAt = Util.nowStamp();
+
+      State.log("CSV読込成功: url=" + found.url);
+      State.log("CSV読込成功: 件数=" + out.length);
+
+      cb(null, out);
+    });
   };
 
-  global.State = State;
+  global.CSVLoader = CSVLoader;
 
 })(window);
