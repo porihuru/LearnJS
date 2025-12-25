@@ -249,18 +249,34 @@ html, body {
   margin-bottom: 4px;
 }
 
-/* [IDX-07] フッター：2ボタンを左右に配置（次へ=左 / 終了=右 など） */
+/* [IDX-07] フッター：左右寄せを確実にする（Edge95対応のflex） */
 .modalFooter {
   margin-top: 12px;
   border-top: 1px solid #eee;
   padding-top: 10px;
 
-  display: table;
-  width: 100%;
-  table-layout: fixed;
+  display: flex;                 /* 追加 */
+  justify-content: space-between;/* 左右に押し広げる */
+  align-items: center;           /* 縦位置を揃える */
 }
 
-.modalFooter button { width: 120px; }
+.modalFooter button {
+  width: 120px;
+}
+
+/* 回答結果フッター：次へ=左 / 終了=右（flexなので確実） */
+#modalFooterAnswer {
+  display: flex;
+}
+#modalFooterAnswer #btnModalNext { margin-right: 10px; }
+#modalFooterAnswer #btnModalEnd  { margin-left: auto; } /* 終了を右端へ */
+
+/* 結果発表フッター：印刷=左 / 閉じる=右 */
+#modalFooterResult {
+  display: flex;
+}
+#modalFooterResult #btnModalPrint { margin-right: 10px; }
+#modalFooterResult #btnModalClose { margin-left: auto; }
 
 /* 回答結果フッター：次へ左、終了右 */
 #modalFooterAnswer #btnModalNext { display: table-cell; text-align: left; }
