@@ -1,17 +1,23 @@
 /*
   ファイル: js/render.js
-  作成日時(JST): 2025-12-25 22:25:00
-  VERSION: 20251225-04
+  作成日時(JST): 2025-12-26 20:00:00
+  VERSION: 20251226-01
+
+  画面仕様:
+    - 開始前：出題グループは非表示
+    - 開始後：カテゴリ/開始/履歴削除を非表示、出題グループ表示
+    - 回答後：即ポップアップ（正解/不正解、正解、解説、集計、次へ/終了）
 */
 (function (global) {
   "use strict";
 
   var Render = {};
-  Render.VERSION = "20251225-04";
+  Render.VERSION = "20251226-01";
   Util.registerVersion("render.js", Render.VERSION);
 
+  /* [IDX-010] カテゴリセレクト描画（各カテゴリに件数付与） */
   Render.renderCategories = function () {
-    var sel = document.getElementById("categorySelect");
+    var sel = Util.byId("categorySelect");
     if (!sel) return;
 
     while (sel.options.length > 0) sel.remove(0);
@@ -35,8 +41,51 @@
     }
   };
 
+  /* [IDX-020] 右上情報 */
+  Render.renderTopInfo = function () {
+    var el = Util.byId("topInfo");
+    if (!el) return;
+    el.textContent = "起動: " + (State.App.openedAt || "(未設定)") + " / HTML: " + State.VERS.html + " / CSS: " + State.VERS.css;
+  };
+
+  /* [IDX-030] ログ */
+  Render.renderLogs = function () {
+    var box = Util.byId("logBox");
+    if (!box) return;
+
+    var lines = State.App.logs || [];
+    box.textContent = lines.join("\n");
+    try { box.scrollTop = box.scrollHeight; } catch (e) {}
+  };
+
+  /* [IDX-040] フッター */
+  Render.renderFooter = function () {
+    var vLine = Util.byId("versionLine");
+    var dLine = Util.byId("dataLine");
+
+    if (vLine) vLine.textContent = "BUILD: " + State.App.build + " / JS: " + State.getAllVersions();
+    if (dLine) {
+      dLine.textContent =
+        "データ: " + State.App.dataSource +
+        " / 件数: " + (State.App.rows ? State.App.rows.length : 0) +
+        " / 最終読込: " + (State.App.lastLoadedAt || "—");
+    }
+  };
+
+  /* [IDX-050] 出題モード切替（App.jsから呼ぶ） */
+  Render.setQuizMode = function (on) {
+    State.App.inQuizMode = !!on;
+
+    Util.setDisplay("quizPanel", !!on);
+
+    Util.setDisplay("boxCategory", !on);
+    Util.setDisplay("boxRandomStart", !on);
+    Util.setDisplay("boxIdStart", !on);
+    Util.setDisplay("btnClearHistory", !on);
+  };
+
   function clearChoices() {
-    var wrap = document.getElementById("choices");
+    var wrap = Util.byId("choices");
     if (!wrap) return;
     while (wrap.firstChild) wrap.removeChild(wrap.firstChild);
   }
@@ -44,7 +93,6 @@
   function createChoiceButton(choice, isAnswered, mark) {
     var btn = document.createElement("div");
     btn.className = "choiceBtn";
-
     if (isAnswered) btn.className += " isLocked";
     if (mark === "correct") btn.className += " isCorrect";
     if (mark === "wrong") btn.className += " isWrong";
@@ -59,12 +107,13 @@
 
     btn.appendChild(key);
     btn.appendChild(txt);
-
     return btn;
   }
 
+  /* [IDX-060] 出題表示 */
   Render.renderQuestion = function () {
     var cur = Engine.getCurrent();
+
     if (!cur) {
       Util.setText("metaId", "（未開始）");
       Util.setText("metaCategory", "（未開始）");
@@ -78,7 +127,7 @@
     var row = cur.row;
     var ans = cur.ans;
 
-    Util.setText("metaId", row.idText || row.id || "");
+    Util.setText("metaId", row.idText || "");
     Util.setText("metaCategory", row.category || "");
     Util.setText("questionText", row.question || "");
 
@@ -86,11 +135,11 @@
     if (ans.isAnswered) st = ans.isCorrect ? "正解" : "不正解";
     Util.setText("metaStatus", st);
 
-    var hist = Util.histGet(State.App.histMap, row.idText || row.id || "");
+    var hist = HistoryStore.get(State.App.histMap, row.idText || "");
     Util.setText("metaHist", "正解" + hist.c + "回 / 不正解" + hist.w + "回");
 
     clearChoices();
-    var wrap = document.getElementById("choices");
+    var wrap = Util.byId("choices");
     if (!wrap) return;
 
     for (var i = 0; i < ans.options.length; i++) {
@@ -105,90 +154,44 @@
 
       var btn = createChoiceButton(opt, ans.isAnswered, mark);
 
+      /* [IDX-061] 回答は1回のみ：未回答時だけクリック有効 */
       if (!ans.isAnswered) {
         (function (choiceText) {
           btn.onclick = function () {
             var res = Engine.selectAnswer(choiceText);
             if (!res || !res.ok) return;
 
-            var idKey = res.idText || "";
-            Util.histInc(State.App.histMap, idKey, !!res.isCorrect);
-            State.log("履歴更新: " + idKey + " / " + (res.isCorrect ? "正解+1" : "不正解+1"));
+            /* [IDX-062] Cookie履歴更新 */
+            HistoryStore.inc(State.App.histMap, res.idText, !!res.isCorrect);
+            State.log("履歴更新: " + res.idText + " / " + (res.isCorrect ? "正解+1" : "不正解+1"));
 
             Render.renderQuestion();
             Render.renderFooter();
             Render.showAnswerModal(res);
           };
         })(opt.text);
+      } else {
+        btn.onclick = null;
       }
 
       wrap.appendChild(btn);
     }
   };
 
-  Render.renderTopInfo = function () {
-    var el = document.getElementById("topInfo");
-    if (!el) return;
-    var s = State.App.openedAt || "(未設定)";
-    el.textContent = "起動: " + s + " / HTML: " + State.VERS.html + " / CSS: " + State.VERS.css;
-  };
+  /* ========= モーダル ========= */
 
-  Render.renderLogs = function () {
-    var box = document.getElementById("logBox");
-    if (!box) return;
-
-    var lines = State.App.logs || [];
-    box.textContent = lines.join("\n");
-    try { box.scrollTop = box.scrollHeight; } catch (e) {}
-  };
-
-  Render.renderFooter = function () {
-    var vLine = document.getElementById("versionLine");
-    var dLine = document.getElementById("dataLine");
-
-    if (vLine) vLine.textContent = "BUILD: " + State.App.build + " / JS: " + State.getAllVersions();
-    if (dLine) {
-      dLine.textContent =
-        "データ: " + State.App.dataSource +
-        " / 件数: " + (State.App.rows ? State.App.rows.length : 0) +
-        " / 最終読込: " + (State.App.lastLoadedAt || "—");
-    }
-  };
-
-  function showOverlay() {
-    var ov = document.getElementById("modalOverlay");
-    if (!ov) return;
-    ov.style.display = "block";
-  }
-
-  function hideOverlay() {
-    var ov = document.getElementById("modalOverlay");
-    if (!ov) return;
-    ov.style.display = "none";
-  }
+  function showOverlay() { Util.byId("modalOverlay").style.display = "block"; }
+  function hideOverlay() { Util.byId("modalOverlay").style.display = "none"; }
 
   function setModal(mode) {
-    var fA = document.getElementById("modalFooterAnswer");
-    var fR = document.getElementById("modalFooterResult");
-    if (fA) fA.style.display = (mode === "answer") ? "table" : "none";
-    if (fR) fR.style.display = (mode === "result") ? "table" : "none";
+    Util.byId("modalFooterAnswer").style.display = (mode === "answer") ? "flex" : "none";
+    Util.byId("modalFooterResult").style.display = (mode === "result") ? "flex" : "none";
   }
 
-  function esc(s) {
-    s = (s === null || s === undefined) ? "" : String(s);
-    return s.replace(/&/g, "&amp;")
-            .replace(/</g, "&lt;")
-            .replace(/>/g, "&gt;")
-            .replace(/"/g, "&quot;")
-            .replace(/'/g, "&#39;");
-  }
-
-  /*
-    [IDX-20] 回答結果モーダル（正解/不正解を大きく、色付き）
-  */
+  /* [IDX-100] 回答結果モーダル */
   Render.showAnswerModal = function (res) {
-    var title = document.getElementById("modalTitle");
-    var body = document.getElementById("modalBody");
+    var title = Util.byId("modalTitle");
+    var body = Util.byId("modalBody");
     if (!title || !body) return;
 
     setModal("answer");
@@ -196,82 +199,61 @@
 
     var okng = res.isCorrect ? "正解" : "不正解";
     var cls = res.isCorrect ? "isCorrect" : "isWrong";
+
     var stats = res.stats || { total: 0, correct: 0, wrong: 0 };
 
     var html = "";
-    html += '<div class="resultTopLine ' + cls + '">' + esc(okng) + "</div>";
+    html += '<div class="resultTopLine ' + cls + '">' + Util.esc(okng) + "</div>";
 
-    html += '<div class="modalSectionTitle">正解の答え:</div>';
-    html += '<div>' + esc(res.correctText || "") + "</div>";
+    html += '<div class="modalSectionTitle">正解の答え</div>';
+    html += "<div>" + Util.esc(res.correctText || "") + "</div>";
 
-    html += '<div class="modalSectionTitle">解説:</div>';
-    html += '<div>' + esc(res.explanation || "") + "</div>";
+    html += '<div class="modalSectionTitle">解説</div>';
+    html += "<div>" + Util.esc(res.explanation || "") + "</div>";
 
-    html += '<div class="modalSectionTitle">集計:</div>';
-    html += '<div>問題数: ' + esc(stats.total) +
-            '　正解数: ' + esc(stats.correct) +
-            '　不正解数: ' + esc(stats.wrong) + "</div>";
+    html += '<div class="modalSectionTitle">集計</div>';
+    html += "<div>問題数: " + Util.esc(stats.total) +
+            "　正解数: " + Util.esc(stats.correct) +
+            "　不正解数: " + Util.esc(stats.wrong) + "</div>";
 
     body.innerHTML = html;
-
     showOverlay();
   };
 
-  /*
-    [IDX-30] 結果発表モーダル（印刷用にStateに保存）
-  */
+  /* [IDX-110] 結果発表モーダル（印刷/メール用スナップショット生成） */
   Render.showResultModal = function () {
-    var title = document.getElementById("modalTitle");
-    var body = document.getElementById("modalBody");
+    var title = Util.byId("modalTitle");
+    var body = Util.byId("modalBody");
     if (!title || !body) return;
 
     setModal("result");
     title.textContent = "結果発表";
 
-    var s = State.App.session;
-    var stats = (s && s.stats) ? s.stats : { total: 0, correct: 0, wrong: 0, answered: 0 };
+    var snap = Engine.buildResultSnapshot();
+    var r = (snap && snap.result) ? snap.result : { total: 0, answered: 0, correct: 0, wrong: 0, rate: 0, at: Util.nowStamp() };
 
-    var rate = 0;
-    if (stats.total > 0) rate = Math.round((stats.correct / stats.total) * 100);
-
-    // [IDX-31] 印刷用の詳細（各問題）も作る
-    var details = [];
-    if (s && s.items && s.items.length) {
-      for (var i = 0; i < s.items.length; i++) {
-        var it = s.items[i];
-        var row = it.row || {};
-        var ans = it.ans || {};
-        details.push({
-          id: row.idText || row.id || "",
-          category: row.category || "",
-          question: row.question || "",
-          selected: ans.selectedText || "",
-          correct: ans.correctText || "",
-          ok: !!ans.isCorrect
-        });
-      }
+    /* [IDX-111] Cookie履歴（全体） */
+    var histArr = HistoryStore.toArraySorted(State.App.histMap);
+    var histText = "";
+    for (var i = 0; i < histArr.length; i++) {
+      var h = histArr[i];
+      histText += "ID" + h.id + "：正解" + h.c + " 不正解" + h.w + "\n";
     }
-
-    State.App.lastResult = {
-      total: stats.total,
-      answered: stats.answered,
-      correct: stats.correct,
-      wrong: stats.wrong,
-      rate: rate,
-      at: Util.nowStamp()
-    };
-    State.App.lastResultDetails = details;
+    if (!histText) histText = "（履歴なし）\n";
 
     var html = "";
-    html += "<div>問題数: " + esc(stats.total) + "</div>";
-    html += "<div>回答数: " + esc(stats.answered) + "</div>";
-    html += "<div>正解数: " + esc(stats.correct) + "</div>";
-    html += "<div>不正解数: " + esc(stats.wrong) + "</div>";
-    html += "<div>正答率: " + esc(rate) + "%</div>";
+    html += "<div>問題数: " + Util.esc(r.total) + "</div>";
+    html += "<div>回答数: " + Util.esc(r.answered) + "</div>";
+    html += "<div>正解数: " + Util.esc(r.correct) + "</div>";
+    html += "<div>不正解数: " + Util.esc(r.wrong) + "</div>";
+    html += "<div>正答率: " + Util.esc(r.rate) + "%</div>";
+
+    html += '<div class="modalSectionTitle">累積履歴（Cookie）</div>';
+    html += "<div style='white-space:pre-wrap;'>" + Util.esc(histText) + "</div>";
+
     html += "<div style='margin-top:10px;'>お疲れさまでした。</div>";
 
     body.innerHTML = html;
-
     showOverlay();
   };
 
