@@ -1,13 +1,13 @@
 /*
   ファイル: js/render.js
-  作成日時(JST): 2025-12-25 21:40:00
-  VERSION: 20251225-03
+  作成日時(JST): 2025-12-25 22:25:00
+  VERSION: 20251225-04
 */
 (function (global) {
   "use strict";
 
   var Render = {};
-  Render.VERSION = "20251225-03";
+  Render.VERSION = "20251225-04";
   Util.registerVersion("render.js", Render.VERSION);
 
   Render.renderCategories = function () {
@@ -129,7 +129,6 @@
   Render.renderTopInfo = function () {
     var el = document.getElementById("topInfo");
     if (!el) return;
-
     var s = State.App.openedAt || "(未設定)";
     el.textContent = "起動: " + s + " / HTML: " + State.VERS.html + " / CSS: " + State.VERS.css;
   };
@@ -147,9 +146,7 @@
     var vLine = document.getElementById("versionLine");
     var dLine = document.getElementById("dataLine");
 
-    if (vLine) {
-      vLine.textContent = "BUILD: " + State.App.build + " / JS: " + State.getAllVersions();
-    }
+    if (vLine) vLine.textContent = "BUILD: " + State.App.build + " / JS: " + State.getAllVersions();
     if (dLine) {
       dLine.textContent =
         "データ: " + State.App.dataSource +
@@ -177,53 +174,103 @@
     if (fR) fR.style.display = (mode === "result") ? "table" : "none";
   }
 
+  function esc(s) {
+    s = (s === null || s === undefined) ? "" : String(s);
+    return s.replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/"/g, "&quot;")
+            .replace(/'/g, "&#39;");
+  }
+
+  /*
+    [IDX-20] 回答結果モーダル（正解/不正解を大きく、色付き）
+  */
   Render.showAnswerModal = function (res) {
     var title = document.getElementById("modalTitle");
     var body = document.getElementById("modalBody");
     if (!title || !body) return;
 
     setModal("answer");
-
-    var okng = res.isCorrect ? "正解" : "不正解";
-    var stats = res.stats || { total: 0, correct: 0, wrong: 0 };
-
     title.textContent = "回答結果";
 
-    var text = ""
-      + okng + "\n\n"
-      + "正解の答え:\n" + (res.correctText || "") + "\n\n"
-      + "解説:\n" + (res.explanation || "") + "\n\n"
-      + "問題数: " + stats.total + "  正解数: " + stats.correct + "  不正解数: " + stats.wrong;
+    var okng = res.isCorrect ? "正解" : "不正解";
+    var cls = res.isCorrect ? "isCorrect" : "isWrong";
+    var stats = res.stats || { total: 0, correct: 0, wrong: 0 };
 
-    body.textContent = text;
+    var html = "";
+    html += '<div class="resultTopLine ' + cls + '">' + esc(okng) + "</div>";
+
+    html += '<div class="modalSectionTitle">正解の答え:</div>';
+    html += '<div>' + esc(res.correctText || "") + "</div>";
+
+    html += '<div class="modalSectionTitle">解説:</div>';
+    html += '<div>' + esc(res.explanation || "") + "</div>";
+
+    html += '<div class="modalSectionTitle">集計:</div>';
+    html += '<div>問題数: ' + esc(stats.total) +
+            '　正解数: ' + esc(stats.correct) +
+            '　不正解数: ' + esc(stats.wrong) + "</div>";
+
+    body.innerHTML = html;
 
     showOverlay();
   };
 
+  /*
+    [IDX-30] 結果発表モーダル（印刷用にStateに保存）
+  */
   Render.showResultModal = function () {
     var title = document.getElementById("modalTitle");
     var body = document.getElementById("modalBody");
     if (!title || !body) return;
 
     setModal("result");
+    title.textContent = "結果発表";
 
     var s = State.App.session;
     var stats = (s && s.stats) ? s.stats : { total: 0, correct: 0, wrong: 0, answered: 0 };
 
-    title.textContent = "結果発表";
-
     var rate = 0;
     if (stats.total > 0) rate = Math.round((stats.correct / stats.total) * 100);
 
-    var text = ""
-      + "問題数: " + stats.total + "\n"
-      + "回答数: " + stats.answered + "\n"
-      + "正解数: " + stats.correct + "\n"
-      + "不正解数: " + stats.wrong + "\n"
-      + "正答率: " + rate + "%\n\n"
-      + "お疲れさまでした。";
+    // [IDX-31] 印刷用の詳細（各問題）も作る
+    var details = [];
+    if (s && s.items && s.items.length) {
+      for (var i = 0; i < s.items.length; i++) {
+        var it = s.items[i];
+        var row = it.row || {};
+        var ans = it.ans || {};
+        details.push({
+          id: row.idText || row.id || "",
+          category: row.category || "",
+          question: row.question || "",
+          selected: ans.selectedText || "",
+          correct: ans.correctText || "",
+          ok: !!ans.isCorrect
+        });
+      }
+    }
 
-    body.textContent = text;
+    State.App.lastResult = {
+      total: stats.total,
+      answered: stats.answered,
+      correct: stats.correct,
+      wrong: stats.wrong,
+      rate: rate,
+      at: Util.nowStamp()
+    };
+    State.App.lastResultDetails = details;
+
+    var html = "";
+    html += "<div>問題数: " + esc(stats.total) + "</div>";
+    html += "<div>回答数: " + esc(stats.answered) + "</div>";
+    html += "<div>正解数: " + esc(stats.correct) + "</div>";
+    html += "<div>不正解数: " + esc(stats.wrong) + "</div>";
+    html += "<div>正答率: " + esc(rate) + "%</div>";
+    html += "<div style='margin-top:10px;'>お疲れさまでした。</div>";
+
+    body.innerHTML = html;
 
     showOverlay();
   };
