@@ -1,15 +1,19 @@
 /*
   ファイル: js/state.js
-  作成日時(JST): 2025-12-25 22:25:00
-  VERSION: 20251225-04
+  作成日時(JST): 2025-12-26 20:00:00
+  VERSION: 20251226-01
 */
 (function (global) {
   "use strict";
 
   var State = {};
-  State.VERSION = "20251225-04";
+  State.VERSION = "20251226-01";
   Util.registerVersion("state.js", State.VERSION);
 
+  /* [IDX-010] 画面右上の表記 */
+  State.VERS = { html: "20251226-01", css: "20251226-01" };
+
+  /* [IDX-020] CSV列（Choice1＝正解扱い） */
   State.CONFIG = {
     data: {
       fallbackCsv: "questions_fallback.csv",
@@ -27,10 +31,9 @@
     }
   };
 
-  State.VERS = { html: "20251225-04", css: "20251225-04" };
-
+  /* [IDX-030] アプリ状態（ログ・データ・セッション） */
   State.App = {
-    build: "app-20251225-04",
+    build: "app-20251226-01",
     openedAt: "",
     dataSource: "CSV:fallback",
     lastLoadedAt: "",
@@ -38,24 +41,26 @@
     categories: [],
     categoryCounts: {},
     session: null,
-    histMap: {},
-    logs: [],
     inQuizMode: false,
+    logs: [],
+    histMap: {},
 
-    /* [IDX-10] 印刷用に「最後の結果」を保持 */
+    /* [IDX-031] 印刷/メール用に結果を保持 */
     lastResult: null,
     lastResultDetails: null
   };
 
+  /* [IDX-040] ログ */
   State.log = function (msg) {
     var line = "[" + Util.nowStamp() + "] " + msg;
     State.App.logs.push(line);
     if (global.Render && Render.renderLogs) Render.renderLogs();
   };
 
+  /* [IDX-050] JSバージョン一覧（フッター表示用） */
   State.getAllVersions = function () {
     var v = global.__VERSIONS__ || {};
-    var order = ["util.js", "state.js", "csv_loader.js", "engine.js", "render.js", "print.js", "app.js"];
+    var order = ["util.js", "state.js", "history_store.js", "csv_loader.js", "engine.js", "render.js", "print.js", "mail.js", "app.js"];
     var parts = [];
     for (var i = 0; i < order.length; i++) {
       var k = order[i];
