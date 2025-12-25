@@ -1,18 +1,13 @@
 /*
   ファイル: js/csv_loader.js
-  作成日時(JST): 2025-12-25 21:10:00
-  VERSION: 20251225-02
-
-  [CSV-方針]
-    - [CSV-01] XMLHttpRequest で相対CSV取得（IEモード互換）
-    - [CSV-02] BOM除去 / CRLF対応 / ダブルクォート対応
-    - [CSV-03] IDは表示用(idText) + 比較用(idNum=末尾数字) を保持
+  作成日時(JST): 2025-12-25 21:40:00
+  VERSION: 20251225-03
 */
 (function (global) {
   "use strict";
 
   var CSVLoader = {};
-  CSVLoader.VERSION = "20251225-02";
+  CSVLoader.VERSION = "20251225-03";
   Util.registerVersion("csv_loader.js", CSVLoader.VERSION);
 
   function xhrGetText(url, cb) {
@@ -39,7 +34,6 @@
     return s.toLowerCase();
   }
 
-  // [CSV-10] CSVパーサ（ダブルクォート対応）
   function parseCSV(text) {
     var rows = [];
     var i = 0;
@@ -110,12 +104,10 @@
       return (fields[idx] === undefined || fields[idx] === null) ? "" : String(fields[idx]);
     }
 
-    // [CSV-03] IDは表示用文字列 + 比較用数値（末尾数字）
     var idText = getBy(cols.id);
     idText = (idText === null || idText === undefined) ? "" : String(idText).replace(/^\s+|\s+$/g, "");
     var idNum = 0;
 
-    // 純数値ならそれを優先
     var asInt = parseInt(idText, 10);
     if (!isNaN(asInt) && String(asInt) === String(idText)) idNum = asInt;
     else idNum = Util.extractLastInt(idText, 0);
@@ -150,7 +142,6 @@
     return d.substring(0, p + 1);
   }
 
-  // [CSV-40] 上位階層探索（置き場所が変わっても拾える）
   function tryLoadUpwards(dir, fileName, depth, maxDepth, cb) {
     var url = dir + fileName;
     State.log("CSV探索: try depth=" + depth + " url=" + url);
@@ -177,7 +168,7 @@
     tryLoadUpwards(startDir, fileName, 0, 5, function (err, found) {
       if (err || !found) {
         State.log("CSV読込失敗: status=" + (err ? err.status : "?") + " url=" + (err ? err.url : "?"));
-        return cb(err || { status: 0, url: "unknown" }, null);
+        return cb(err || { status: 0, url: "unknownKnown" }, null);
       }
 
       var grid = parseCSV(found.text);
@@ -196,7 +187,6 @@
         out.push(obj);
       }
 
-      // [CSV-50] ID順（idNum優先）
       out.sort(function (a, b) {
         var an = (a.idNum || 0), bn = (b.idNum || 0);
         if (an !== bn) return an - bn;
