@@ -1,7 +1,7 @@
 /*
   ファイル: style.css
-  作成日時(JST): 2025-12-25 21:40:00
-  VERSION(CSS): 20251225-03
+  作成日時(JST): 2025-12-25 22:25:00
+  VERSION(CSS): 20251225-04
 */
 
 html, body {
@@ -26,11 +26,7 @@ html, body {
   margin-bottom: 10px;
 }
 
-.titleLeft, .titleRight {
-  display: table-cell;
-  vertical-align: middle;
-}
-
+.titleLeft, .titleRight { display: table-cell; vertical-align: middle; }
 .titleLeft { width: 60%; }
 .titleRight { width: 40%; text-align: right; }
 
@@ -48,7 +44,6 @@ html, body {
 
 /* ツールバー */
 .toolbar { margin: 6px 0 14px 0; }
-
 .toolbarRow { font-size: 0; }
 
 .startBox, .toolRight {
@@ -93,11 +88,7 @@ html, body {
   background: #fff;
 }
 
-.toolText {
-  font-size: 12px;
-  color: #333;
-  margin: 0 6px;
-}
+.toolText { font-size: 12px; color: #333; margin: 0 6px; }
 
 .btnPrimary, .btnDanger {
   height: 32px;
@@ -106,18 +97,8 @@ html, body {
   cursor: pointer;
 }
 
-.btnPrimary {
-  border: 1px solid #233447;
-  background: #233447;
-  color: #fff;
-}
-
-.btnDanger {
-  border: 1px solid #8b2a2a;
-  background: #8b2a2a;
-  color: #fff;
-}
-
+.btnPrimary { border: 1px solid #233447; background: #233447; color: #fff; }
+.btnDanger  { border: 1px solid #8b2a2a; background: #8b2a2a; color: #fff; }
 .btnPrimary:active, .btnDanger:active { transform: translateY(1px); }
 
 /* 枠グループ */
@@ -138,29 +119,14 @@ html, body {
 /* 出題内側（約10%右寄せ） */
 .quizInner { margin-left: 10%; }
 
-.metaRow {
-  font-size: 12px;
-  color: #333;
-  margin-bottom: 10px;
-  line-height: 1.6;
-}
+.metaRow { font-size: 12px; color: #333; margin-bottom: 10px; line-height: 1.6; }
 .metaItem { margin-right: 16px; }
 .metaLabel { font-weight: 700; }
 
 .qBlock { margin: 10px 0 10px 0; }
-.qText {
-  font-size: 20px;
-  font-weight: 700;
-  color: #111;
-  line-height: 1.35;
-}
+.qText { font-size: 20px; font-weight: 700; color: #111; line-height: 1.35; }
 
-.choiceHint {
-  font-size: 12px;
-  color: #666;
-  margin: 6px 0 8px 0;
-}
-
+.choiceHint { font-size: 12px; color: #666; margin: 6px 0 8px 0; }
 .choices { max-width: 420px; }
 
 .choiceBtn {
@@ -171,7 +137,6 @@ html, body {
   padding: 10px 12px;
   margin-bottom: 8px;
 }
-
 .choiceBtn:hover { background: #fafafa; }
 
 .choiceKey {
@@ -218,34 +183,38 @@ html, body {
 .versionLine, .dataLine { white-space: pre-wrap; margin-top: 4px; }
 
 /* ========= モーダル =========
-  修正点:
-    - opacity を廃止し、背景のみ rgba で半透明化
-    - これにより modalBox は不透明のまま
+  [IDX-01] overlayは背景のみ半透明(rgba)。子要素は不透明。
 */
 .modalOverlay {
   position: fixed;
   left: 0; top: 0;
   width: 100%;
   height: 100%;
-
-  /* [FIX-01] 子要素が半透明にならない方式 */
-  background: rgba(0, 0, 0, 0.35);
-
+  background: rgba(0, 0, 0, 0.35); /* [IDX-02] ここだけ半透明 */
   z-index: 9990;
 }
 
+/*
+  [IDX-03] モーダル本体
+  - left:50% + transform でセンタリング（古い環境でも安全）
+  - max-width/max-height + vh でスマホのはみ出しを抑制
+*/
 .modalBox {
   position: fixed;
   left: 50%;
-  top: 12%;
+  top: 8%;
+  transform: translateX(-50%);
   width: 520px;
-  margin-left: -260px;
+  max-width: 92%;
+  max-height: 84vh;
 
-  background: #fff;              /* [FIX-02] 常に不透明 */
+  background: #fff;
   border: 1px solid #cfcfcf;
   border-radius: 12px;
   padding: 12px 14px;
   z-index: 9991;
+
+  overflow: hidden; /* [IDX-04] body側でスクロールさせる */
 }
 
 .modalTitle {
@@ -254,16 +223,33 @@ html, body {
   margin-bottom: 10px;
 }
 
+/* [IDX-05] 本文はvh基準でスクロール可能にする */
 .modalBody {
   font-size: 14px;
   line-height: 1.6;
   white-space: pre-wrap;
-  max-height: 360px;
+  max-height: 55vh;
   overflow: auto;
   border-top: 1px solid #eee;
   padding-top: 10px;
 }
 
+/* [IDX-06] 回答結果の先頭行（正解/不正解）を大きく */
+.resultTopLine {
+  font-size: 22px;
+  font-weight: 800;
+  margin-bottom: 10px;
+}
+.resultTopLine.isCorrect { color: #1f5fbf; } /* 正解=青 */
+.resultTopLine.isWrong   { color: #c12929; } /* 不正解=赤 */
+
+.modalSectionTitle {
+  font-weight: 700;
+  margin-top: 8px;
+  margin-bottom: 4px;
+}
+
+/* [IDX-07] フッター：2ボタンを左右に配置（次へ=左 / 終了=右 など） */
 .modalFooter {
   margin-top: 12px;
   border-top: 1px solid #eee;
@@ -276,11 +262,17 @@ html, body {
 
 .modalFooter button { width: 120px; }
 
-#btnModalEnd { display: table-cell; text-align: left; }
-#btnModalNext, #btnModalClose { display: table-cell; text-align: right; }
+/* 回答結果フッター：次へ左、終了右 */
+#modalFooterAnswer #btnModalNext { display: table-cell; text-align: left; }
+#modalFooterAnswer #btnModalEnd  { display: table-cell; text-align: right; }
+
+/* 結果発表フッター：印刷左、閉じる右 */
+#modalFooterResult #btnModalPrint { display: table-cell; text-align: left; }
+#modalFooterResult #btnModalClose { display: table-cell; text-align: right; }
 
 @media (max-width: 600px) {
-  .modalBox { width: 92%; margin-left: -46%; }
   .quizInner { margin-left: 0; }
   .select { min-width: 220px; }
+  .modalBox { top: 6%; }
+  .modalBody { max-height: 60vh; }
 }
