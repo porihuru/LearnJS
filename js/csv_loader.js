@@ -1,210 +1,235 @@
 /*
   ファイル: js/csv_loader.js
-  作成日時(JST): 2025-12-25 21:40:00
-  VERSION: 20251225-03
+  作成日時(JST): 2025-12-26 20:00:00
+  VERSION: 20251226-01
+
+  目的:
+    - Edge95/IEモードでも読み込めるようfetch不使用（XHR）
+    - 同一ディレクトリに questions_fallback.csv がある前提
+    - ただし「置き場所が変わっても」ある程度追従できるよう、親階層へ探索（最大4段）
 */
 (function (global) {
   "use strict";
 
   var CSVLoader = {};
-  CSVLoader.VERSION = "20251225-03";
+  CSVLoader.VERSION = "20251226-01";
   Util.registerVersion("csv_loader.js", CSVLoader.VERSION);
 
+  /* [IDX-010] XHRでテキスト取得 */
   function xhrGetText(url, cb) {
-    var x = new XMLHttpRequest();
-    x.open("GET", url, true);
-    x.onreadystatechange = function () {
-      if (x.readyState !== 4) return;
-      if (x.status >= 200 && x.status < 300) return cb(null, x.responseText);
-      cb({ status: x.status, url: url }, null);
-    };
-    try { x.send(null); } catch (e) { cb({ status: 0, url: url, error: e }, null); }
+    try {
+      var xhr = new XMLHttpRequest();
+      xhr.open("GET", url, true);
+      xhr.onreadystatechange = function () {
+        if (xhr.readyState !== 4) return;
+        if (xhr.status === 200 || xhr.status === 0) {
+          cb(null, xhr.responseText);
+        } else {
+          cb(new Error("HTTP " + xhr.status));
+        }
+      };
+      xhr.send(null);
+    } catch (e) {
+      cb(e);
+    }
   }
 
-  function stripBom(s) {
-    if (!s) return s;
+  /* [IDX-020] BOM除去 */
+  function stripBOM(s) {
+    if (!s) return "";
     if (s.charCodeAt(0) === 0xFEFF) return s.substring(1);
     return s;
   }
 
-  function normHeader(s) {
-    s = (s === null || s === undefined) ? "" : String(s);
-    s = stripBom(s);
-    s = s.replace(/^\s+|\s+$/g, "");
-    return s.toLowerCase();
-  }
-
+  /* [IDX-030] CSVパーサ（引用符・改行・カンマ対応の簡易実装） */
   function parseCSV(text) {
+    text = stripBOM(text || "");
+    /* 正規化 */
+    text = text.replace(/\r\n/g, "\n").replace(/\r/g, "\n");
+
     var rows = [];
-    var i = 0;
-    var field = "";
     var row = [];
-    var inQuotes = false;
+    var cur = "";
+    var inQ = false;
 
-    function pushField() { row.push(field); field = ""; }
-    function pushRow() {
-      var allEmpty = true;
-      for (var k = 0; k < row.length; k++) {
-        if (String(row[k] || "").replace(/^\s+|\s+$/g, "") !== "") { allEmpty = false; break; }
-      }
-      if (!allEmpty) rows.push(row);
-      row = [];
-    }
-
-    while (i < text.length) {
+    for (var i = 0; i < text.length; i++) {
       var ch = text.charAt(i);
 
-      if (inQuotes) {
+      if (inQ) {
         if (ch === '"') {
-          var next = text.charAt(i + 1);
-          if (next === '"') { field += '"'; i += 2; continue; }
-          inQuotes = false; i++; continue;
+          /* "" はエスケープ */
+          var next = (i + 1 < text.length) ? text.charAt(i + 1) : "";
+          if (next === '"') {
+            cur += '"';
+            i++;
+          } else {
+            inQ = false;
+          }
+        } else {
+          cur += ch;
         }
-        field += ch; i++; continue;
       } else {
-        if (ch === '"') { inQuotes = true; i++; continue; }
-        if (ch === ",") { pushField(); i++; continue; }
-        if (ch === "\r") {
-          pushField(); pushRow();
-          if (text.charAt(i + 1) === "\n") i += 2; else i++;
-          continue;
+        if (ch === '"') {
+          inQ = true;
+        } else if (ch === ",") {
+          row.push(cur);
+          cur = "";
+        } else if (ch === "\n") {
+          row.push(cur);
+          cur = "";
+          /* 空行除外 */
+          var nonEmpty = false;
+          for (var k = 0; k < row.length; k++) {
+            if (String(row[k]).replace(/\s+/g, "") !== "") { nonEmpty = true; break; }
+          }
+          if (nonEmpty) rows.push(row);
+          row = [];
+        } else {
+          cur += ch;
         }
-        if (ch === "\n") { pushField(); pushRow(); i++; continue; }
-        field += ch; i++;
       }
     }
 
-    pushField(); pushRow();
+    /* 最終セル */
+    row.push(cur);
+    if (row.length > 1 || (row.length === 1 && String(row[0]).replace(/\s+/g, "") !== "")) {
+      rows.push(row);
+    }
     return rows;
   }
 
-  function buildHeaderIndexMap(headers) {
+  /* [IDX-040] URLの基準ディレクトリ（末尾/まで） */
+  function getBaseDir() {
+    var href = String(global.location.href || "");
+    var q = href.indexOf("?");
+    if (q >= 0) href = href.substring(0, q);
+    var hash = href.indexOf("#");
+    if (hash >= 0) href = href.substring(0, hash);
+    /* /index.html のような末尾を落とす */
+    var lastSlash = href.lastIndexOf("/");
+    if (lastSlash < 0) return href;
+    return href.substring(0, lastSlash + 1);
+  }
+
+  /* [IDX-050] 親階層を作る */
+  function parentDir(url) {
+    if (!url) return url;
+    /* 末尾/を前提 */
+    var s = url;
+    if (s.charAt(s.length - 1) !== "/") s += "/";
+    /* 末尾の / を除いた上で一つ上へ */
+    var t = s.substring(0, s.length - 1);
+    var last = t.lastIndexOf("/");
+    if (last < 0) return s;
+    return t.substring(0, last + 1);
+  }
+
+  /* [IDX-060] ヘッダ名から列Indexを解決 */
+  function buildHeaderMap(headerRow) {
     var map = {};
-    for (var i = 0; i < headers.length; i++) {
-      var key = normHeader(headers[i]);
-      if (key && map[key] === undefined) map[key] = i;
+    for (var i = 0; i < headerRow.length; i++) {
+      var key = String(headerRow[i] || "").replace(/^\s+|\s+$/g, "");
+      if (!key) continue;
+      map[key] = i;
     }
     return map;
   }
 
-  function findIndex(map, candidates) {
-    for (var i = 0; i < candidates.length; i++) {
-      var k = normHeader(candidates[i]);
-      if (map[k] !== undefined) return map[k];
+  function pickCell(cols, headerMap, row) {
+    for (var i = 0; i < cols.length; i++) {
+      var name = cols[i];
+      if (headerMap.hasOwnProperty(name)) {
+        var idx = headerMap[name];
+        return (idx < row.length) ? row[idx] : "";
+      }
     }
-    return -1;
+    return "";
   }
 
-  function normalizeRow(headers, cols, fields) {
-    var map = buildHeaderIndexMap(headers);
+  /* [IDX-070] CSV→内部rowsへ */
+  function convertToRows(csvRows) {
+    if (!csvRows || csvRows.length < 2) return [];
 
-    function getBy(candidates) {
-      var idx = findIndex(map, candidates);
-      if (idx < 0) return "";
-      return (fields[idx] === undefined || fields[idx] === null) ? "" : String(fields[idx]);
-    }
+    var header = csvRows[0];
+    var headerMap = buildHeaderMap(header);
 
-    var idText = getBy(cols.id);
-    idText = (idText === null || idText === undefined) ? "" : String(idText).replace(/^\s+|\s+$/g, "");
-    var idNum = 0;
+    var out = [];
+    for (var r = 1; r < csvRows.length; r++) {
+      var row = csvRows[r];
 
-    var asInt = parseInt(idText, 10);
-    if (!isNaN(asInt) && String(asInt) === String(idText)) idNum = asInt;
-    else idNum = Util.extractLastInt(idText, 0);
+      var idText = pickCell(State.CONFIG.columns.id, headerMap, row);
+      var cat = pickCell(State.CONFIG.columns.category, headerMap, row);
+      var q = pickCell(State.CONFIG.columns.question, headerMap, row);
 
-    return {
-      id: idText,
-      idText: idText,
-      idNum: idNum,
-      category: getBy(cols.category),
-      question: getBy(cols.question),
-      choice1: getBy(cols.choice1),
-      choice2: getBy(cols.choice2),
-      choice3: getBy(cols.choice3),
-      choice4: getBy(cols.choice4),
-      explanation: getBy(cols.explanation)
-    };
-  }
+      var c1 = pickCell(State.CONFIG.columns.choice1, headerMap, row);
+      var c2 = pickCell(State.CONFIG.columns.choice2, headerMap, row);
+      var c3 = pickCell(State.CONFIG.columns.choice3, headerMap, row);
+      var c4 = pickCell(State.CONFIG.columns.choice4, headerMap, row);
+      var exp = pickCell(State.CONFIG.columns.explanation, headerMap, row);
 
-  function getStartDir() {
-    var href = String(global.location && global.location.href ? global.location.href : "");
-    href = href.split("#")[0].split("?")[0];
-    var p = href.lastIndexOf("/");
-    if (p < 0) return href;
-    return href.substring(0, p + 1);
-  }
+      /* [IDX-071] IDは文字列保持＋数値化も持つ */
+      var idNum = parseInt(idText, 10);
+      if (isNaN(idNum)) idNum = 0;
 
-  function parentDir(dir) {
-    var d = dir;
-    if (d.length && d.charAt(d.length - 1) === "/") d = d.substring(0, d.length - 1);
-    var p = d.lastIndexOf("/");
-    if (p < 0) return dir;
-    return d.substring(0, p + 1);
-  }
-
-  function tryLoadUpwards(dir, fileName, depth, maxDepth, cb) {
-    var url = dir + fileName;
-    State.log("CSV探索: try depth=" + depth + " url=" + url);
-
-    xhrGetText(url, function (err, text) {
-      if (!err) return cb(null, { url: url, text: text });
-
-      if (err.status === 404 && depth < maxDepth) {
-        var up = parentDir(dir);
-        if (up === dir) return cb(err, null);
-        return tryLoadUpwards(up, fileName, depth + 1, maxDepth, cb);
-      }
-      return cb(err, null);
-    });
-  }
-
-  CSVLoader.loadFallback = function (cb) {
-    var fileName = State.CONFIG.data.fallbackCsv;
-    var startDir = getStartDir();
-
-    State.log("CSV読込開始: file=" + fileName);
-    State.log("CSV探索開始: baseDir=" + startDir);
-
-    tryLoadUpwards(startDir, fileName, 0, 5, function (err, found) {
-      if (err || !found) {
-        State.log("CSV読込失敗: status=" + (err ? err.status : "?") + " url=" + (err ? err.url : "?"));
-        return cb(err || { status: 0, url: "unknownKnown" }, null);
-      }
-
-      var grid = parseCSV(found.text);
-      if (!grid.length) {
-        State.log("CSV読込失敗: 空です url=" + found.url);
-        return cb({ status: 0, url: found.url, message: "empty" }, null);
-      }
-
-      var headers = grid[0];
-      var cols = State.CONFIG.columns;
-
-      var out = [];
-      for (var r = 1; r < grid.length; r++) {
-        var obj = normalizeRow(headers, cols, grid[r]);
-        if (!obj.question) continue;
-        out.push(obj);
-      }
-
-      out.sort(function (a, b) {
-        var an = (a.idNum || 0), bn = (b.idNum || 0);
-        if (an !== bn) return an - bn;
-        var at = String(a.idText || ""), bt = String(b.idText || "");
-        if (at < bt) return -1;
-        if (at > bt) return 1;
-        return 0;
+      out.push({
+        idText: String(idText || ""),
+        idNum: idNum,
+        category: String(cat || ""),
+        question: String(q || ""),
+        choice1: String(c1 || ""),
+        choice2: String(c2 || ""),
+        choice3: String(c3 || ""),
+        choice4: String(c4 || ""),
+        explanation: String(exp || "")
       });
+    }
+    return out;
+  }
 
-      State.App.rows = out;
-      State.App.dataSource = "CSV:fallback";
-      State.App.lastLoadedAt = Util.nowStamp();
+  /* [IDX-080] fallback CSVロード（親階層探索） */
+  CSVLoader.loadFallback = function (cb) {
+    var file = State.CONFIG.data.fallbackCsv;
 
-      State.log("CSV読込成功: url=" + found.url);
-      State.log("CSV読込成功: 件数=" + out.length);
+    State.log("CSV読込開始: file=" + file);
 
-      cb(null, out);
-    });
+    var base = getBaseDir();
+    State.log("CSV探索開始: baseDir=" + base);
+
+    var depthMax = 4;
+    var curDir = base;
+
+    function tryOne(depth) {
+      var url = curDir + file;
+      State.log("CSV探索: try depth=" + depth + " url=" + url);
+
+      xhrGetText(url, function (err, text) {
+        if (!err && text) {
+          State.log("CSV読込成功: url=" + url);
+
+          var rows = parseCSV(text);
+          var data = convertToRows(rows);
+
+          State.App.rows = data;
+          State.App.lastLoadedAt = Util.nowStamp();
+          State.App.dataSource = "CSV:fallback";
+
+          State.log("CSV読込成功: 件数=" + data.length);
+          cb(null, data);
+          return;
+        }
+
+        /* 失敗→親へ */
+        if (depth >= depthMax) {
+          State.log("CSV読込失敗: depthMax到達");
+          cb(new Error("CSV not found"));
+          return;
+        }
+        curDir = parentDir(curDir);
+        tryOne(depth + 1);
+      });
+    }
+
+    tryOne(0);
   };
 
   global.CSVLoader = CSVLoader;
