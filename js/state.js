@@ -1,13 +1,13 @@
 /*
   ファイル: js/state.js
-  作成日時(JST): 2025-12-25 21:40:00
-  VERSION: 20251225-03
+  作成日時(JST): 2025-12-25 22:25:00
+  VERSION: 20251225-04
 */
 (function (global) {
   "use strict";
 
   var State = {};
-  State.VERSION = "20251225-03";
+  State.VERSION = "20251225-04";
   Util.registerVersion("state.js", State.VERSION);
 
   State.CONFIG = {
@@ -27,13 +27,10 @@
     }
   };
 
-  State.VERS = {
-    html: "20251225-03",
-    css: "20251225-03"
-  };
+  State.VERS = { html: "20251225-04", css: "20251225-04" };
 
   State.App = {
-    build: "app-20251225-03",
+    build: "app-20251225-04",
     openedAt: "",
     dataSource: "CSV:fallback",
     lastLoadedAt: "",
@@ -43,7 +40,11 @@
     session: null,
     histMap: {},
     logs: [],
-    inQuizMode: false /* [ST-90] 出題中フラグ */
+    inQuizMode: false,
+
+    /* [IDX-10] 印刷用に「最後の結果」を保持 */
+    lastResult: null,
+    lastResultDetails: null
   };
 
   State.log = function (msg) {
@@ -54,7 +55,7 @@
 
   State.getAllVersions = function () {
     var v = global.__VERSIONS__ || {};
-    var order = ["util.js", "state.js", "csv_loader.js", "engine.js", "render.js", "app.js"];
+    var order = ["util.js", "state.js", "csv_loader.js", "engine.js", "render.js", "print.js", "app.js"];
     var parts = [];
     for (var i = 0; i < order.length; i++) {
       var k = order[i];
