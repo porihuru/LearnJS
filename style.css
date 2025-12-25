@@ -1,12 +1,7 @@
 /*
   ファイル: style.css
-  作成日時(JST): 2025-12-25 21:10:00
-  VERSION(CSS): 20251225-02
-
-  [IE-UI方針]
-    - [CSS-01] grid 不使用（IEモードで崩れるため）
-    - [CSS-02] flex-gap 不使用（IEで未対応）
-    - [CSS-03] inline-block / margin / table で配置
+  作成日時(JST): 2025-12-25 21:40:00
+  VERSION(CSS): 20251225-03
 */
 
 html, body {
@@ -20,15 +15,13 @@ html, body {
 .page {
   max-width: 1200px;
   margin: 0 auto;
-  padding: 14px 18px 24px 18px; /* [CSS-10] 左右余白 */
+  padding: 14px 18px 24px 18px;
 }
 
-/* -----------------------------
-  [UI-01] ヘッダー
------------------------------ */
+/* ヘッダー */
 .topHeader {
   width: 100%;
-  display: table;              /* [CSS-01] tableで2カラム */
+  display: table;
   table-layout: fixed;
   margin-bottom: 10px;
 }
@@ -53,21 +46,17 @@ html, body {
   line-height: 1.3;
 }
 
-/* -----------------------------
-  [UI-02] ツールバー
------------------------------ */
+/* ツールバー */
 .toolbar { margin: 6px 0 14px 0; }
 
-.toolbarRow {
-  font-size: 0; /* [CSS-20] inline-blockの隙間対策 */
-}
+.toolbarRow { font-size: 0; }
 
 .startBox, .toolRight {
   display: inline-block;
   vertical-align: middle;
-  margin-right: 10px; /* [CSS-21] gap代替 */
+  margin-right: 10px;
   margin-bottom: 8px;
-  font-size: 12px;    /* toolbarRowのfont-size:0を戻す */
+  font-size: 12px;
 }
 
 .startBox {
@@ -129,13 +118,9 @@ html, body {
   color: #fff;
 }
 
-.btnPrimary:active, .btnDanger:active {
-  transform: translateY(1px);
-}
+.btnPrimary:active, .btnDanger:active { transform: translateY(1px); }
 
-/* -----------------------------
-  [UI-03][UI-07] 枠グループ
------------------------------ */
+/* 枠グループ */
 .panelBox {
   border: 1px solid #d8d8d8;
   border-radius: 10px;
@@ -150,10 +135,9 @@ html, body {
   margin-bottom: 8px;
 }
 
-/* [UI-03-01] 出題内側を右に寄せる（約10%） */
+/* 出題内側（約10%右寄せ） */
 .quizInner { margin-left: 10%; }
 
-/* メタ行 */
 .metaRow {
   font-size: 12px;
   color: #333;
@@ -163,7 +147,6 @@ html, body {
 .metaItem { margin-right: 16px; }
 .metaLabel { font-weight: 700; }
 
-/* 問題 */
 .qBlock { margin: 10px 0 10px 0; }
 .qText {
   font-size: 20px;
@@ -178,7 +161,6 @@ html, body {
   margin: 6px 0 8px 0;
 }
 
-/* 選択肢（grid不使用 / 縦積み） */
 .choices { max-width: 420px; }
 
 .choiceBtn {
@@ -187,7 +169,7 @@ html, body {
   background: #fff;
   cursor: pointer;
   padding: 10px 12px;
-  margin-bottom: 8px; /* gap代替 */
+  margin-bottom: 8px;
 }
 
 .choiceBtn:hover { background: #fafafa; }
@@ -211,16 +193,14 @@ html, body {
   color: #222;
   line-height: 1.35;
   vertical-align: top;
-  width: calc(100% - 40px); /* 多少の右側余白 */
+  width: calc(100% - 40px);
 }
 
 .choiceBtn.isLocked { cursor: default; opacity: 0.95; }
 .choiceBtn.isCorrect { border-color: #4c8f4c; background: #f4fbf4; }
 .choiceBtn.isWrong   { border-color: #b85a5a; background: #fff5f5; }
 
-/* -----------------------------
-  [UI-07] ログ
------------------------------ */
+/* ログ */
 .logBox {
   border: 1px solid #d8d8d8;
   border-radius: 10px;
@@ -234,36 +214,34 @@ html, body {
   overflow: auto;
 }
 
-.footerBar {
-  margin-top: 10px;
-  font-size: 12px;
-  color: #333;
-}
+.footerBar { margin-top: 10px; font-size: 12px; color: #333; }
 .versionLine, .dataLine { white-space: pre-wrap; margin-top: 4px; }
 
-/* -----------------------------
-  [MODAL] モーダル
------------------------------ */
+/* ========= モーダル =========
+  修正点:
+    - opacity を廃止し、背景のみ rgba で半透明化
+    - これにより modalBox は不透明のまま
+*/
 .modalOverlay {
-  position: fixed;     /* IE11互換あり */
-  left: 0;
-  top: 0;
+  position: fixed;
+  left: 0; top: 0;
   width: 100%;
   height: 100%;
-  background: #000;
-  filter: alpha(opacity=35); /* IE用 */
-  opacity: 0.35;
+
+  /* [FIX-01] 子要素が半透明にならない方式 */
+  background: rgba(0, 0, 0, 0.35);
+
   z-index: 9990;
 }
 
-/* overlay上にboxを置くため、別レイヤ（boxは別で固定） */
 .modalBox {
   position: fixed;
   left: 50%;
   top: 12%;
   width: 520px;
   margin-left: -260px;
-  background: #fff;
+
+  background: #fff;              /* [FIX-02] 常に不透明 */
   border: 1px solid #cfcfcf;
   border-radius: 12px;
   padding: 12px 14px;
@@ -291,32 +269,18 @@ html, body {
   border-top: 1px solid #eee;
   padding-top: 10px;
 
-  /* [MODAL-10] 左右に離す（flex-gap禁止のためtable） */
   display: table;
   width: 100%;
   table-layout: fixed;
 }
 
-.modalFooter button {
-  width: 120px;
-}
+.modalFooter button { width: 120px; }
 
-#btnModalEnd {
-  display: table-cell;
-  text-align: left;
-}
+#btnModalEnd { display: table-cell; text-align: left; }
+#btnModalNext, #btnModalClose { display: table-cell; text-align: right; }
 
-#btnModalNext, #btnModalClose {
-  display: table-cell;
-  text-align: right;
-}
-
-/* 画面が狭い場合の安全策（IEでも効く範囲） */
 @media (max-width: 600px) {
-  .modalBox {
-    width: 92%;
-    margin-left: -46%;
-  }
+  .modalBox { width: 92%; margin-left: -46%; }
   .quizInner { margin-left: 0; }
   .select { min-width: 220px; }
 }
