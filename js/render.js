@@ -1,29 +1,19 @@
 /*
   ファイル: js/render.js
-  作成日時(JST): 2025-12-25 21:10:00
-  VERSION: 20251225-02
-
-  [REN-要件]
-    - [REN-01] カテゴリselectに件数表示（例：不動産：全5問）
-    - [REN-02] 出題の表示（ID/カテゴリ/状態/累積）
-    - [REN-03] 回答後はモーダル表示（次へ/終了）
-    - [REN-04] 終了/全問終了で結果発表モーダル
+  作成日時(JST): 2025-12-25 21:40:00
+  VERSION: 20251225-03
 */
 (function (global) {
   "use strict";
 
   var Render = {};
-  Render.VERSION = "20251225-02";
+  Render.VERSION = "20251225-03";
   Util.registerVersion("render.js", Render.VERSION);
 
-  // =========================
-  // [REN-10] カテゴリ描画（件数付き）
-  // =========================
   Render.renderCategories = function () {
     var sel = document.getElementById("categorySelect");
     if (!sel) return;
 
-    // 先頭1件（すべて）だけ残して作り直す
     while (sel.options.length > 0) sel.remove(0);
 
     var counts = State.App.categoryCounts || {};
@@ -45,9 +35,6 @@
     }
   };
 
-  // =========================
-  // [REN-20] 選択肢描画
-  // =========================
   function clearChoices() {
     var wrap = document.getElementById("choices");
     if (!wrap) return;
@@ -76,9 +63,6 @@
     return btn;
   }
 
-  // =========================
-  // [REN-30] 出題表示
-  // =========================
   Render.renderQuestion = function () {
     var cur = Engine.getCurrent();
     if (!cur) {
@@ -102,7 +86,6 @@
     if (ans.isAnswered) st = ans.isCorrect ? "正解" : "不正解";
     Util.setText("metaStatus", st);
 
-    // [REN-02] Cookie履歴の累積表示
     var hist = Util.histGet(State.App.histMap, row.idText || row.id || "");
     Util.setText("metaHist", "正解" + hist.c + "回 / 不正解" + hist.w + "回");
 
@@ -113,7 +96,6 @@
     for (var i = 0; i < ans.options.length; i++) {
       var opt = ans.options[i];
 
-      // 回答後に色を付ける（選んだ選択肢のみ）
       var mark = "";
       if (ans.isAnswered) {
         if (String(opt.text) === String(ans.selectedText)) {
@@ -123,24 +105,18 @@
 
       var btn = createChoiceButton(opt, ans.isAnswered, mark);
 
-      // [REN-03] 回答は一回のみ：未回答の時だけクリック可能
       if (!ans.isAnswered) {
         (function (choiceText) {
           btn.onclick = function () {
-            // Engineでロック判定+採点
             var res = Engine.selectAnswer(choiceText);
             if (!res || !res.ok) return;
 
-            // Cookie履歴更新（ID別累積）
             var idKey = res.idText || "";
             Util.histInc(State.App.histMap, idKey, !!res.isCorrect);
             State.log("履歴更新: " + idKey + " / " + (res.isCorrect ? "正解+1" : "不正解+1"));
 
-            // 画面側も更新（状態/累積の即時反映）
             Render.renderQuestion();
             Render.renderFooter();
-
-            // 回答モーダル表示
             Render.showAnswerModal(res);
           };
         })(opt.text);
@@ -150,9 +126,6 @@
     }
   };
 
-  // =========================
-  // [REN-40] 上部右情報（起動日時＋HTML/CSS）
-  // =========================
   Render.renderTopInfo = function () {
     var el = document.getElementById("topInfo");
     if (!el) return;
@@ -161,9 +134,6 @@
     el.textContent = "起動: " + s + " / HTML: " + State.VERS.html + " / CSS: " + State.VERS.css;
   };
 
-  // =========================
-  // [REN-50] ログ/フッター
-  // =========================
   Render.renderLogs = function () {
     var box = document.getElementById("logBox");
     if (!box) return;
@@ -188,9 +158,6 @@
     }
   };
 
-  // =========================
-  // [MODAL] 表示制御（回答/結果）
-  // =========================
   function showOverlay() {
     var ov = document.getElementById("modalOverlay");
     if (!ov) return;
@@ -204,14 +171,12 @@
   }
 
   function setModal(mode) {
-    // mode: "answer" or "result"
     var fA = document.getElementById("modalFooterAnswer");
     var fR = document.getElementById("modalFooterResult");
     if (fA) fA.style.display = (mode === "answer") ? "table" : "none";
     if (fR) fR.style.display = (mode === "result") ? "table" : "none";
   }
 
-  // [MODAL-01] 回答後モーダル
   Render.showAnswerModal = function (res) {
     var title = document.getElementById("modalTitle");
     var body = document.getElementById("modalBody");
@@ -224,7 +189,6 @@
 
     title.textContent = "回答結果";
 
-    // [MODAL-11] 表示内容（要件通り）
     var text = ""
       + okng + "\n\n"
       + "正解の答え:\n" + (res.correctText || "") + "\n\n"
@@ -236,7 +200,6 @@
     showOverlay();
   };
 
-  // [MODAL-02] 結果発表モーダル
   Render.showResultModal = function () {
     var title = document.getElementById("modalTitle");
     var body = document.getElementById("modalBody");
@@ -265,9 +228,7 @@
     showOverlay();
   };
 
-  Render.hideModal = function () {
-    hideOverlay();
-  };
+  Render.hideModal = function () { hideOverlay(); };
 
   global.Render = Render;
 
