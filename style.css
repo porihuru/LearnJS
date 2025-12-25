@@ -1,7 +1,12 @@
 /*
   ファイル: style.css
-  作成日時(JST): 2025-12-25 20:30:00
-  VERSION: 20251225-01
+  作成日時(JST): 2025-12-25 21:10:00
+  VERSION(CSS): 20251225-02
+
+  [IE-UI方針]
+    - [CSS-01] grid 不使用（IEモードで崩れるため）
+    - [CSS-02] flex-gap 不使用（IEで未対応）
+    - [CSS-03] inline-block / margin / table で配置
 */
 
 html, body {
@@ -15,15 +20,26 @@ html, body {
 .page {
   max-width: 1200px;
   margin: 0 auto;
-  padding: 14px 18px 24px 18px;
+  padding: 14px 18px 24px 18px; /* [CSS-10] 左右余白 */
 }
 
+/* -----------------------------
+  [UI-01] ヘッダー
+----------------------------- */
 .topHeader {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
+  width: 100%;
+  display: table;              /* [CSS-01] tableで2カラム */
+  table-layout: fixed;
   margin-bottom: 10px;
 }
+
+.titleLeft, .titleRight {
+  display: table-cell;
+  vertical-align: middle;
+}
+
+.titleLeft { width: 60%; }
+.titleRight { width: 40%; text-align: right; }
 
 .appTitle {
   font-size: 16px;
@@ -31,26 +47,43 @@ html, body {
   color: #111;
 }
 
-.toolbar {
-  margin: 6px 0 14px 0;
+.topInfo {
+  font-size: 11px;
+  color: #444;
+  line-height: 1.3;
 }
+
+/* -----------------------------
+  [UI-02] ツールバー
+----------------------------- */
+.toolbar { margin: 6px 0 14px 0; }
 
 .toolbarRow {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  flex-wrap: wrap;
+  font-size: 0; /* [CSS-20] inline-blockの隙間対策 */
 }
 
-.toolGroup {
-  display: flex;
-  align-items: center;
-  gap: 8px;
+.startBox, .toolRight {
+  display: inline-block;
+  vertical-align: middle;
+  margin-right: 10px; /* [CSS-21] gap代替 */
+  margin-bottom: 8px;
+  font-size: 12px;    /* toolbarRowのfont-size:0を戻す */
 }
+
+.startBox {
+  padding: 6px 8px;
+  border: 1px solid #d8d8d8;
+  border-radius: 8px;
+  background: #fff;
+}
+
+.toolRight { margin-right: 0; }
 
 .toolLabel {
   font-size: 12px;
   color: #333;
+  font-weight: 700;
+  margin-right: 8px;
 }
 
 .select {
@@ -59,17 +92,7 @@ html, body {
   border: 1px solid #cfcfcf;
   border-radius: 6px;
   background: #fff;
-  min-width: 220px;
-}
-
-.startBox {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  padding: 6px 8px;
-  border: 1px solid #d8d8d8;
-  border-radius: 8px;
-  background: #fff;
+  min-width: 260px;
 }
 
 .numInput {
@@ -84,57 +107,64 @@ html, body {
 .toolText {
   font-size: 12px;
   color: #333;
+  margin: 0 6px;
 }
 
-.btnPrimary {
+.btnPrimary, .btnDanger {
   height: 32px;
   padding: 0 12px;
-  border: 1px solid #233447;
-  background: #233447;
-  color: #fff;
   border-radius: 8px;
   cursor: pointer;
 }
 
-.btnPrimary:active {
+.btnPrimary {
+  border: 1px solid #233447;
+  background: #233447;
+  color: #fff;
+}
+
+.btnDanger {
+  border: 1px solid #8b2a2a;
+  background: #8b2a2a;
+  color: #fff;
+}
+
+.btnPrimary:active, .btnDanger:active {
   transform: translateY(1px);
 }
 
-.quizArea {
-  border-top: 1px solid #e7e7e7;
-  padding-top: 14px;
+/* -----------------------------
+  [UI-03][UI-07] 枠グループ
+----------------------------- */
+.panelBox {
+  border: 1px solid #d8d8d8;
+  border-radius: 10px;
+  background: #fff;
+  padding: 10px 12px;
+  margin-top: 10px;
 }
 
-.sectionTitle {
+.panelTitle {
   font-size: 14px;
   font-weight: 700;
-  margin-bottom: 10px;
+  margin-bottom: 8px;
 }
 
+/* [UI-03-01] 出題内側を右に寄せる（約10%） */
+.quizInner { margin-left: 10%; }
+
+/* メタ行 */
 .metaRow {
-  display: flex;
-  gap: 18px;
-  flex-wrap: wrap;
   font-size: 12px;
   color: #333;
   margin-bottom: 10px;
+  line-height: 1.6;
 }
+.metaItem { margin-right: 16px; }
+.metaLabel { font-weight: 700; }
 
-.metaLabel {
-  font-weight: 700;
-}
-
-.qBlock {
-  margin: 10px 0 10px 0;
-}
-
-.qLabel {
-  font-size: 12px;
-  color: #333;
-  margin-bottom: 6px;
-  font-weight: 700;
-}
-
+/* 問題 */
+.qBlock { margin: 10px 0 10px 0; }
 .qText {
   font-size: 20px;
   font-weight: 700;
@@ -148,135 +178,49 @@ html, body {
   margin: 6px 0 8px 0;
 }
 
-.choices {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 8px;
-  max-width: 360px;
-}
+/* 選択肢（grid不使用 / 縦積み） */
+.choices { max-width: 420px; }
 
 .choiceBtn {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 10px 12px;
   border: 1px solid #d2d2d2;
   border-radius: 10px;
   background: #fff;
   cursor: pointer;
+  padding: 10px 12px;
+  margin-bottom: 8px; /* gap代替 */
 }
 
-.choiceBtn:hover {
-  background: #fafafa;
-}
+.choiceBtn:hover { background: #fafafa; }
 
 .choiceKey {
-  min-width: 20px;
-  height: 20px;
+  display: inline-block;
+  width: 22px;
+  height: 22px;
   border: 1px solid #cfcfcf;
   border-radius: 6px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
+  text-align: center;
+  line-height: 22px;
   font-size: 12px;
   color: #333;
+  margin-right: 10px;
 }
 
 .choiceText {
+  display: inline-block;
   font-size: 14px;
   color: #222;
   line-height: 1.35;
+  vertical-align: top;
+  width: calc(100% - 40px); /* 多少の右側余白 */
 }
 
-.choiceBtn.isSelected {
-  border-color: #8aa6c1;
-  background: #f3f7fb;
-}
+.choiceBtn.isLocked { cursor: default; opacity: 0.95; }
+.choiceBtn.isCorrect { border-color: #4c8f4c; background: #f4fbf4; }
+.choiceBtn.isWrong   { border-color: #b85a5a; background: #fff5f5; }
 
-.choiceBtn.isCorrect {
-  border-color: #4c8f4c;
-  background: #f4fbf4;
-}
-
-.choiceBtn.isWrong {
-  border-color: #b85a5a;
-  background: #fff5f5;
-}
-
-.actionRow {
-  display: flex;
-  gap: 18px;
-  margin: 12px 0 6px 0;
-}
-
-.btnLink {
-  border: none;
-  background: transparent;
-  color: #333;
-  font-size: 12px;
-  cursor: pointer;
-  padding: 6px 0;
-}
-
-.btnLink:hover {
-  text-decoration: underline;
-}
-
-.expBlock {
-  margin: 6px 0 10px 0;
-}
-
-.expTitle {
-  font-size: 14px;
-  font-weight: 700;
-  margin: 8px 0;
-}
-
-.expText {
-  font-size: 14px;
-  color: #222;
-  line-height: 1.6;
-  white-space: pre-wrap;
-}
-
-.navRow {
-  display: flex;
-  gap: 10px;
-  margin: 10px 0 14px 0;
-}
-
-.btnNav {
-  height: 34px;
-  padding: 0 14px;
-  border: 1px solid #cfcfcf;
-  background: #efefef;
-  color: #222;
-  border-radius: 10px;
-  cursor: pointer;
-}
-
-.btnNavPrimary {
-  background: #6c7a89;
-  border-color: #6c7a89;
-  color: #fff;
-}
-
-.btnNav:disabled {
-  opacity: 0.5;
-  cursor: default;
-}
-
-.bottomArea {
-  border-top: 1px solid #e7e7e7;
-  padding-top: 10px;
-}
-
-.logTitle {
-  font-size: 14px;
-  font-weight: 700;
-  margin-bottom: 8px;
-}
-
+/* -----------------------------
+  [UI-07] ログ
+----------------------------- */
 .logBox {
   border: 1px solid #d8d8d8;
   border-radius: 10px;
@@ -286,7 +230,7 @@ html, body {
   color: #222;
   white-space: pre-wrap;
   line-height: 1.45;
-  height: 160px;
+  height: 180px;
   overflow: auto;
 }
 
@@ -294,11 +238,85 @@ html, body {
   margin-top: 10px;
   font-size: 12px;
   color: #333;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
+}
+.versionLine, .dataLine { white-space: pre-wrap; margin-top: 4px; }
+
+/* -----------------------------
+  [MODAL] モーダル
+----------------------------- */
+.modalOverlay {
+  position: fixed;     /* IE11互換あり */
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  background: #000;
+  filter: alpha(opacity=35); /* IE用 */
+  opacity: 0.35;
+  z-index: 9990;
 }
 
-.versionLine, .dataLine {
+/* overlay上にboxを置くため、別レイヤ（boxは別で固定） */
+.modalBox {
+  position: fixed;
+  left: 50%;
+  top: 12%;
+  width: 520px;
+  margin-left: -260px;
+  background: #fff;
+  border: 1px solid #cfcfcf;
+  border-radius: 12px;
+  padding: 12px 14px;
+  z-index: 9991;
+}
+
+.modalTitle {
+  font-size: 16px;
+  font-weight: 700;
+  margin-bottom: 10px;
+}
+
+.modalBody {
+  font-size: 14px;
+  line-height: 1.6;
   white-space: pre-wrap;
+  max-height: 360px;
+  overflow: auto;
+  border-top: 1px solid #eee;
+  padding-top: 10px;
+}
+
+.modalFooter {
+  margin-top: 12px;
+  border-top: 1px solid #eee;
+  padding-top: 10px;
+
+  /* [MODAL-10] 左右に離す（flex-gap禁止のためtable） */
+  display: table;
+  width: 100%;
+  table-layout: fixed;
+}
+
+.modalFooter button {
+  width: 120px;
+}
+
+#btnModalEnd {
+  display: table-cell;
+  text-align: left;
+}
+
+#btnModalNext, #btnModalClose {
+  display: table-cell;
+  text-align: right;
+}
+
+/* 画面が狭い場合の安全策（IEでも効く範囲） */
+@media (max-width: 600px) {
+  .modalBox {
+    width: 92%;
+    margin-left: -46%;
+  }
+  .quizInner { margin-left: 0; }
+  .select { min-width: 220px; }
 }
