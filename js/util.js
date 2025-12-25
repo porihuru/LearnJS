@@ -1,158 +1,109 @@
 /*
   ファイル: js/util.js
-  作成日時(JST): 2025-12-25 21:40:00
-  VERSION: 20251225-03
+  作成日時(JST): 2025-12-26 20:00:00
+  VERSION: 20251226-01
 */
 (function (global) {
   "use strict";
 
+  /* [IDX-001] バージョン集計（下部表示用） */
+  if (!global.__VERSIONS__) global.__VERSIONS__ = {};
+
   var Util = {};
-  Util.VERSION = "20251225-03";
+  Util.VERSION = "20251226-01";
 
-  Util.ensureVersions = function () {
-    if (!global.__VERSIONS__) global.__VERSIONS__ = {};
-    return global.__VERSIONS__;
+  Util.registerVersion = function (fileName, version) {
+    global.__VERSIONS__[fileName] = version;
   };
+  Util.registerVersion("util.js", Util.VERSION);
 
-  Util.registerVersion = function (name, ver) {
-    var v = Util.ensureVersions();
-    v[name] = ver;
-  };
-
-  Util.qs = function (sel) { return document.querySelector(sel); };
+  /* [IDX-010] DOMヘルパ */
+  Util.byId = function (id) { return document.getElementById(id); };
 
   Util.setText = function (id, text) {
-    var el = document.getElementById(id);
+    var el = Util.byId(id);
     if (!el) return;
-    el.textContent = (text === undefined || text === null) ? "" : String(text);
+    el.textContent = (text === null || text === undefined) ? "" : String(text);
   };
 
-  Util.setDisplay = function (id, show) {
-    var el = document.getElementById(id);
+  Util.setHTML = function (id, html) {
+    var el = Util.byId(id);
     if (!el) return;
-    el.style.display = show ? "" : "none";
+    el.innerHTML = (html === null || html === undefined) ? "" : String(html);
+  };
+
+  Util.setDisplay = function (id, isShow) {
+    var el = Util.byId(id);
+    if (!el) return;
+    el.style.display = isShow ? "" : "none";
   };
 
   Util.toInt = function (v, defVal) {
     var n = parseInt(v, 10);
-    return isNaN(n) ? (defVal === undefined ? 0 : defVal) : n;
+    if (isNaN(n)) return defVal;
+    return n;
   };
 
-  Util.nowStamp = function () {
-    try { return new Date().toLocaleString(); }
-    catch (e) { return String(new Date()); }
+  /* [IDX-020] 日付（YYYY/MM/DD HH:MM:SS） */
+  function pad2(n) { return (n < 10) ? ("0" + n) : String(n); }
+
+  Util.formatYMDHMS = function (d) {
+    var y = d.getFullYear();
+    var m = pad2(d.getMonth() + 1);
+    var da = pad2(d.getDate());
+    var h = pad2(d.getHours());
+    var mi = pad2(d.getMinutes());
+    var s = pad2(d.getSeconds());
+    return y + "/" + m + "/" + da + " " + h + ":" + mi + ":" + s;
   };
 
-  Util.cloneArray = function (arr) {
-    var out = [];
-    for (var i = 0; i < arr.length; i++) out.push(arr[i]);
-    return out;
-  };
+  Util.nowStamp = function () { return Util.formatYMDHMS(new Date()); };
 
+  /* [IDX-030] 配列シャッフル（Fisher-Yates） */
   Util.shuffle = function (arr) {
-    var a = Util.cloneArray(arr);
+    var a = arr.slice(0);
     for (var i = a.length - 1; i > 0; i--) {
       var j = Math.floor(Math.random() * (i + 1));
-      var t = a[i]; a[i] = a[j]; a[j] = t;
+      var t = a[i];
+      a[i] = a[j];
+      a[j] = t;
     }
     return a;
   };
 
-  Util.pickN = function (arr, n) {
-    if (n <= 0) return [];
-    if (n >= arr.length) return Util.cloneArray(arr);
-    var s = Util.shuffle(arr);
-    return s.slice(0, n);
-  };
-
-  Util.extractLastInt = function (s, defVal) {
+  /* [IDX-040] HTMLエスケープ（render/print/mailで共通利用） */
+  Util.esc = function (s) {
     s = (s === null || s === undefined) ? "" : String(s);
-    var m = s.match(/(\d+)\s*$/);
-    if (!m) return (defVal === undefined ? 0 : defVal);
-    var n = parseInt(m[1], 10);
-    if (isNaN(n)) return (defVal === undefined ? 0 : defVal);
-    return n;
+    return s.replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/"/g, "&quot;")
+            .replace(/'/g, "&#39;");
   };
 
-  Util.getCookie = function (key) {
-    var name = key + "=";
-    var ca = document.cookie.split(";");
-    for (var i = 0; i < ca.length; i++) {
-      var c = ca[i];
-      while (c.charAt(0) === " ") c = c.substring(1);
-      if (c.indexOf(name) === 0) return c.substring(name.length, c.length);
+  /* [IDX-050] Cookie（IEモード互換） */
+  Util.getCookie = function (name) {
+    var c = document.cookie;
+    if (!c) return "";
+    var parts = c.split(";");
+    for (var i = 0; i < parts.length; i++) {
+      var p = parts[i].replace(/^\s+/, "");
+      if (p.indexOf(name + "=") === 0) return decodeURIComponent(p.substring((name + "=").length));
     }
     return "";
   };
 
-  Util.setCookie = function (key, value, days) {
+  Util.setCookie = function (name, value, days) {
     var d = new Date();
     d.setTime(d.getTime() + (days * 24 * 60 * 60 * 1000));
     var expires = "expires=" + d.toUTCString();
-    document.cookie = key + "=" + value + ";" + expires + ";path=/";
+    document.cookie = name + "=" + encodeURIComponent(value) + ";" + expires + ";path=/";
   };
 
-  Util.deleteCookie = function (key) {
-    document.cookie = key + "=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
+  Util.deleteCookie = function (name) {
+    document.cookie = name + "=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
   };
 
-  Util.HIST_COOKIE_KEY = "QUIZ_HIST";
-
-  Util.histLoad = function () {
-    var raw = Util.getCookie(Util.HIST_COOKIE_KEY);
-    var map = {};
-    if (!raw) return map;
-
-    try {
-      var items = raw.split("|");
-      for (var i = 0; i < items.length; i++) {
-        var it = items[i];
-        if (!it) continue;
-        var parts = it.split(",");
-        if (parts.length < 3) continue;
-
-        var id = decodeURIComponent(parts[0]);
-        var c = Util.toInt(parts[1], 0);
-        var w = Util.toInt(parts[2], 0);
-        map[id] = { c: c, w: w };
-      }
-    } catch (e) {
-      map = {};
-    }
-    return map;
-  };
-
-  Util.histSave = function (map) {
-    var out = [];
-    for (var id in map) {
-      if (!map.hasOwnProperty(id)) continue;
-      var v = map[id] || { c: 0, w: 0 };
-      var enc = encodeURIComponent(id);
-      out.push(enc + "," + Util.toInt(v.c, 0) + "," + Util.toInt(v.w, 0));
-    }
-    if (out.length > 200) out = out.slice(0, 200);
-    Util.setCookie(Util.HIST_COOKIE_KEY, out.join("|"), 3650);
-  };
-
-  Util.histGet = function (map, id) {
-    if (!id) return { c: 0, w: 0 };
-    if (map[id]) return { c: map[id].c, w: map[id].w };
-    return { c: 0, w: 0 };
-  };
-
-  Util.histInc = function (map, id, isCorrect) {
-    if (!id) return;
-    if (!map[id]) map[id] = { c: 0, w: 0 };
-    if (isCorrect) map[id].c = Util.toInt(map[id].c, 0) + 1;
-    else map[id].w = Util.toInt(map[id].w, 0) + 1;
-    Util.histSave(map);
-  };
-
-  Util.histClearAll = function () {
-    Util.deleteCookie(Util.HIST_COOKIE_KEY);
-  };
-
-  Util.registerVersion("util.js", Util.VERSION);
   global.Util = Util;
 
 })(window);
