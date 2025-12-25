@@ -1,7 +1,7 @@
 <!--
   ファイル: index.html
-  作成日時(JST): 2025-12-25 21:40:00
-  VERSION(HTML): 20251225-03
+  作成日時(JST): 2025-12-25 22:25:00
+  VERSION(HTML): 20251225-04
 -->
 <!doctype html>
 <html lang="ja">
@@ -10,7 +10,7 @@
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>text_access - Quiz</title>
-  <link rel="stylesheet" href="style.css?v=20251225-03">
+  <link rel="stylesheet" href="style.css?v=20251225-04">
 </head>
 <body>
 
@@ -23,7 +23,7 @@
 
       <div class="titleRight">
         <div id="topInfo" class="topInfo">
-          起動: (未設定) / HTML: 20251225-03 / CSS: 20251225-03
+          起動: (未設定) / HTML: 20251225-04 / CSS: 20251225-04
         </div>
       </div>
     </header>
@@ -105,23 +105,27 @@
 
       <div class="modalBody" id="modalBody"></div>
 
+      <!-- 回答結果用フッター：次へ(左) / 終了(右) -->
       <div class="modalFooter" id="modalFooterAnswer" style="display:none;">
-        <button id="btnModalEnd" class="btnDanger">終了</button>
         <button id="btnModalNext" class="btnPrimary">次へ</button>
+        <button id="btnModalEnd" class="btnDanger">終了</button>
       </div>
 
+      <!-- 結果発表用フッター：印刷(左) / 閉じる(右) -->
       <div class="modalFooter" id="modalFooterResult" style="display:none;">
+        <button id="btnModalPrint" class="btnPrimary">印刷</button>
         <button id="btnModalClose" class="btnPrimary">閉じる</button>
       </div>
 
     </div>
   </div>
 
-  <script src="js/util.js?v=20251225-03"></script>
-  <script src="js/state.js?v=20251225-03"></script>
-  <script src="js/csv_loader.js?v=20251225-03"></script>
-  <script src="js/engine.js?v=20251225-03"></script>
-  <script src="js/render.js?v=20251225-03"></script>
-  <script src="js/app.js?v=20251225-03"></script>
+  <script src="js/util.js?v=20251225-04"></script>
+  <script src="js/state.js?v=20251225-04"></script>
+  <script src="js/csv_loader.js?v=20251225-04"></script>
+  <script src="js/engine.js?v=20251225-04"></script>
+  <script src="js/render.js?v=20251225-04"></script>
+  <script src="js/print.js?v=20251225-04"></script>
+  <script src="js/app.js?v=20251225-04"></script>
 </body>
 </html>
