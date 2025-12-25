@@ -1,22 +1,15 @@
 /*
   ファイル: js/engine.js
-  作成日時(JST): 2025-12-25 21:10:00
-  VERSION: 20251225-02
-
-  [ENG-要件]
-    - [ENG-01] 正解は常に Choice1
-    - [ENG-02] 選択肢は毎回ランダム表示
-    - [ENG-03] 回答は1回のみ（ロック）
-    - [ENG-04] 回答確定でセッション集計（total/correct/wrong/answered）
+  作成日時(JST): 2025-12-25 21:40:00
+  VERSION: 20251225-03
 */
 (function (global) {
   "use strict";
 
   var Engine = {};
-  Engine.VERSION = "20251225-02";
+  Engine.VERSION = "20251225-03";
   Util.registerVersion("engine.js", Engine.VERSION);
 
-  // [ENG-10] 選択肢構築（正解=Choice1 / 表示はシャッフル）
   function buildChoices(row) {
     var correctText = row.choice1;
 
@@ -27,7 +20,6 @@
       { key: "D", text: row.choice4 }
     ];
 
-    // 空だらけ対策
     var any = false;
     for (var i = 0; i < options.length; i++) {
       if (String(options[i].text || "").replace(/^\s+|\s+$/g, "") !== "") { any = true; break; }
@@ -52,7 +44,6 @@
     return out;
   }
 
-  // [ENG-20] セッション生成
   function makeSession(rows) {
     var items = [];
     for (var i = 0; i < rows.length; i++) {
@@ -70,14 +61,11 @@
     };
   }
 
-  // [ENG-30] カテゴリ一覧 + 件数
   Engine.buildCategories = function () {
     var rows = State.App.rows || [];
     var map = {};
     var list = [];
     var counts = {};
-
-    // 全体
     counts["__ALL__"] = rows.length;
 
     for (var i = 0; i < rows.length; i++) {
@@ -92,7 +80,6 @@
     State.App.categoryCounts = counts;
   };
 
-  // [ENG-40] ランダム開始
   Engine.startRandom = function (category, count) {
     var rows = filterByCategory(State.App.rows, category);
     var n = Util.toInt(count, 10);
@@ -104,7 +91,6 @@
     State.log("出題開始(ランダム): category=" + (category === "__ALL__" ? "ALL" : category) + " count=" + n + " actual=" + picked.length);
   };
 
-  // [ENG-41] ID指定開始（idNumで比較）
   Engine.startFromId = function (category, startId, count) {
     var rows = filterByCategory(State.App.rows, category);
     var sid = Util.toInt(startId, 1);
@@ -143,21 +129,17 @@
     return true;
   };
 
-  // [ENG-50] 回答（1回のみ / stats更新）
   Engine.selectAnswer = function (choiceText) {
     var cur = Engine.getCurrent();
     if (!cur) return { ok: false, reason: "no_current" };
 
     var ans = cur.ans;
-
-    // [ENG-03] 2回目以降は無視（ログも増やさない）
     if (ans.isAnswered) return { ok: false, reason: "already_answered" };
 
     ans.selectedText = choiceText;
     ans.isAnswered = true;
     ans.isCorrect = (String(choiceText || "") === String(ans.correctText || ""));
 
-    // stats更新
     var s = State.App.session;
     if (s && s.stats) {
       s.stats.answered++;
