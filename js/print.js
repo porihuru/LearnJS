@@ -1,22 +1,23 @@
 /*
   ファイル: js/print.js
   作成日時(JST): 2025-12-26 20:00:00
-  VERSION: 20251226-01
+  VERSION: 20251226-02
 
-  追加仕様:
-    - 印刷に「今までの正解/不正解履歴（Cookie）」を掲載
+  仕様変更:
+    - 累積履歴（Cookieの一覧）セクションは印刷から削除
+    - 明細テーブルに「履歴（正/不）」列を追加（例: 3/2）
+    - ID列は最小幅（文字幅）にする
 */
 (function (global) {
   "use strict";
 
   var PrintManager = {};
-  PrintManager.VERSION = "20251226-01";
+  PrintManager.VERSION = "20251226-02";
   Util.registerVersion("print.js", PrintManager.VERSION);
 
   function buildHtml() {
     var r = State.App.lastResult || {};
     var details = State.App.lastResultDetails || [];
-    var histArr = HistoryStore.toArraySorted(State.App.histMap);
 
     var html = "";
     html += "<!doctype html><html><head><meta charset='utf-8'>";
@@ -32,6 +33,9 @@
     html += "th{background:#f2f2f2;}";
     html += ".ok{color:#1f5fbf;font-weight:700;}";
     html += ".ng{color:#c12929;font-weight:700;}";
+    /* [IDX-010] ID列を最小幅に */
+    html += ".idcol{width:1%;white-space:nowrap;}";
+    html += ".histcol{width:1%;white-space:nowrap;}";
     html += "</style></head><body>";
 
     html += "<h1>text_access問題集 - 結果発表</h1>";
@@ -45,41 +49,36 @@
     html += "<div>正答率: " + Util.esc(r.rate || 0) + "%</div>";
     html += "</div>";
 
-    /* [IDX-010] セッション明細 */
+    /* [IDX-020] セッション明細（履歴列を追加、累積履歴セクションは削除） */
     html += "<div class='box'><div style='font-weight:700;margin-bottom:6px;'>今回の結果（全問）</div>";
     html += "<table>";
     html += "<tr>";
-    html += "<th style='width:70px;'>ID</th>";
+    html += "<th class='idcol'>ID</th>";
     html += "<th style='width:110px;'>カテゴリ</th>";
     html += "<th>問題</th>";
     html += "<th>選択</th>";
     html += "<th>正解</th>";
     html += "<th style='width:70px;'>判定</th>";
+    html += "<th class='histcol'>履歴(正/不)</th>";
     html += "</tr>";
 
     for (var i = 0; i < details.length; i++) {
       var d = details[i] || {};
+      var hist = HistoryStore.get(State.App.histMap, d.id || "");
+      var histText = String(hist.c || 0) + "/" + String(hist.w || 0);
+
       html += "<tr>";
-      html += "<td>" + Util.esc(d.id) + "</td>";
+      html += "<td class='idcol'>" + Util.esc(d.id) + "</td>";
       html += "<td>" + Util.esc(d.category) + "</td>";
       html += "<td>" + Util.esc(d.question) + "</td>";
       html += "<td>" + Util.esc(d.selected) + "</td>";
       html += "<td>" + Util.esc(d.correct) + "</td>";
       html += "<td class='" + (d.ok ? "ok" : "ng") + "'>" + (d.ok ? "正解" : "不正解") + "</td>";
+      html += "<td class='histcol'>" + Util.esc(histText) + "</td>";
       html += "</tr>";
     }
-    html += "</table></div>";
-
-    /* [IDX-020] Cookie履歴 */
-    html += "<div class='box'><div style='font-weight:700;margin-bottom:6px;'>累積履歴（Cookie：IDごとの正解/不正解）</div>";
-    html += "<table>";
-    html += "<tr><th style='width:80px;'>ID</th><th style='width:120px;'>正解回数</th><th style='width:120px;'>不正解回数</th></tr>";
-    for (var j = 0; j < histArr.length; j++) {
-      var h = histArr[j];
-      html += "<tr><td>" + Util.esc(h.id) + "</td><td>" + Util.esc(h.c) + "</td><td>" + Util.esc(h.w) + "</td></tr>";
-    }
-    if (histArr.length === 0) {
-      html += "<tr><td colspan='3'>（履歴なし）</td></tr>";
+    if (details.length === 0) {
+      html += "<tr><td colspan='7'>（明細なし）</td></tr>";
     }
     html += "</table></div>";
 
