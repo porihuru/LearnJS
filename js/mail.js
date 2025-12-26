@@ -1,23 +1,23 @@
 /*
   ファイル: js/mail.js
   作成日時(JST): 2025-12-26 20:00:00
-  VERSION: 20251226-01
+  VERSION: 20251226-02
 
-  目的:
-    - mailto: を使ってメーラーを起動
-    - 本文に「今回の結果」＋「累積履歴（Cookie）」を載せる
+  仕様変更:
+    - メール本文は「印刷」と同じ情報構成にする
+    - 累積履歴一覧は載せない
+    - 明細各行に「履歴(正/不)=c/w」を載せる
 */
 (function (global) {
   "use strict";
 
   var MailManager = {};
-  MailManager.VERSION = "20251226-01";
+  MailManager.VERSION = "20251226-02";
   Util.registerVersion("mail.js", MailManager.VERSION);
 
   function buildBodyText() {
     var r = State.App.lastResult || {};
     var details = State.App.lastResultDetails || [];
-    var histArr = HistoryStore.toArraySorted(State.App.histMap);
 
     var lines = [];
     lines.push("text_access問題集 結果");
@@ -31,26 +31,22 @@
     lines.push("正答率: " + (r.rate || 0) + "%");
     lines.push("");
 
-    lines.push("【今回の明細】");
+    lines.push("【今回の結果（全問）】");
     for (var i = 0; i < details.length; i++) {
       var d = details[i] || {};
+      var hist = HistoryStore.get(State.App.histMap, d.id || "");
+      var histText = String(hist.c || 0) + "/" + String(hist.w || 0);
+
       lines.push(
         "ID" + (d.id || "") +
         " [" + (d.category || "") + "] " +
         (d.ok ? "正解" : "不正解") +
+        " / 履歴(正/不)=" + histText +
         " / 選択=" + (d.selected || "") +
         " / 正解=" + (d.correct || "")
       );
     }
-    if (details.length === 0) lines.push("（なし）");
-    lines.push("");
-
-    lines.push("【累積履歴（Cookie）】");
-    for (var j = 0; j < histArr.length; j++) {
-      var h = histArr[j];
-      lines.push("ID" + h.id + "：正解" + h.c + " 不正解" + h.w);
-    }
-    if (histArr.length === 0) lines.push("（履歴なし）");
+    if (details.length === 0) lines.push("（明細なし）");
 
     return lines.join("\r\n");
   }
@@ -65,11 +61,9 @@
     var subject = "text_access問題集 結果";
     var body = buildBodyText();
 
-    /* [IDX-010] mailtoの長さ制限に注意（問題数が大きい場合は一部省略など調整可能） */
     var url = "mailto:?subject=" + encodeURIComponent(subject) + "&body=" + encodeURIComponent(body);
 
     State.log("メール: メーラー起動(mailto)を実行");
-    /* Edge95/IEモード互換：location.hrefで起動 */
     global.location.href = url;
   };
 
