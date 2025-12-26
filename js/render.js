@@ -220,42 +220,62 @@
     showOverlay();
   };
 
-  /* [IDX-110] 結果発表モーダル（印刷/メール用スナップショット生成） */
-  Render.showResultModal = function () {
-    var title = Util.byId("modalTitle");
-    var body = Util.byId("modalBody");
-    if (!title || !body) return;
+/* [IDX-110] 結果発表モーダル（メール本文形式をポップアップに表示） */
+Render.showResultModal = function () {
+  var title = Util.byId("modalTitle");
+  var body = Util.byId("modalBody");
+  if (!title || !body) return;
 
-    setModal("result");
-    title.textContent = "結果発表";
+  setModal("result");
+  title.textContent = "結果発表";
 
-    var snap = Engine.buildResultSnapshot();
-    var r = (snap && snap.result) ? snap.result : { total: 0, answered: 0, correct: 0, wrong: 0, rate: 0, at: Util.nowStamp() };
-
-    /* [IDX-111] Cookie履歴（全体） */
-    var histArr = HistoryStore.toArraySorted(State.App.histMap);
-    var histText = "";
-    for (var i = 0; i < histArr.length; i++) {
-      var h = histArr[i];
-      histText += "ID" + h.id + "：正解" + h.c + " 不正解" + h.w + "\n";
-    }
-    if (!histText) histText = "（履歴なし）\n";
-
-    var html = "";
-    html += "<div>問題数: " + Util.esc(r.total) + "</div>";
-    html += "<div>回答数: " + Util.esc(r.answered) + "</div>";
-    html += "<div>正解数: " + Util.esc(r.correct) + "</div>";
-    html += "<div>不正解数: " + Util.esc(r.wrong) + "</div>";
-    html += "<div>正答率: " + Util.esc(r.rate) + "%</div>";
-
-    html += '<div class="modalSectionTitle">累積履歴（Cookie）</div>';
-    html += "<div style='white-space:pre-wrap;'>" + Util.esc(histText) + "</div>";
-
-    html += "<div style='margin-top:10px;'>お疲れさまでした。</div>";
-
-    body.innerHTML = html;
-    showOverlay();
+  var snap = Engine.buildResultSnapshot();
+  var r = (snap && snap.result) ? snap.result : {
+    total: 0, answered: 0, correct: 0, wrong: 0, rate: 0, at: Util.nowStamp()
   };
+
+  var details = (snap && snap.details) ? snap.details : [];
+
+  /* [IDX-111] 先頭：集計 */
+  var lines = [];
+  lines.push("text_access問題集 結果");
+  lines.push("日時: " + (r.at || Util.nowStamp()));
+  lines.push("");
+  lines.push("【今回の結果】");
+  lines.push("問題数: " + (r.total || 0));
+  lines.push("回答数: " + (r.answered || 0));
+  lines.push("正解数: " + (r.correct || 0));
+  lines.push("不正解数: " + (r.wrong || 0));
+  lines.push("正答率: " + (r.rate || 0) + "%");
+  lines.push("");
+  lines.push("【今回の結果（全問）】");
+
+  /* [IDX-112] 4行ブロック形式（メール本文と同じ） */
+  for (var i = 0; i < details.length; i++) {
+    var d = details[i] || {};
+    var id = d.id || "";
+    var cat = d.category || "";
+    var judge = d.ok ? "正解" : "不正解";
+
+    var histObj = HistoryStore.get(State.App.histMap, id);
+    var hist = String(histObj.c || 0) + "/" + String(histObj.w || 0);
+
+    lines.push("|" + id + " |" + cat + " |" + judge + " |" + hist + " |");
+    lines.push(String(d.question || ""));
+    lines.push(String(d.selected || ""));
+    lines.push(String(d.correct || ""));
+    lines.push(""); /* 区切り（空行） */
+  }
+
+  if (details.length === 0) {
+    lines.push("（明細なし）");
+  }
+
+  /* [IDX-113] modalBodyへ（HTMLはエスケープしてpre-wrapで表示） */
+  body.innerHTML = "<div class='monoBlock'>" + Util.esc(lines.join("\n")) + "</div>";
+
+  showOverlay();
+};
 
   Render.hideModal = function () { hideOverlay(); };
 
