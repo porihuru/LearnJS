@@ -244,3 +244,18 @@ html, body {
   .modalBox { top: 6%; }
   .modalBody { max-height: 60vh; }
 }
+
+/* [IDX-150] 回答結果モーダル：次へボタンだけ幅を3倍（終了はそのまま） */
+#btnModalNext {
+  width: 360px;      /* 現状120px相当の3倍 */
+  max-width: 70vw;   /* スマホでははみ出し防止 */
+}
+
+#btnModalEnd {
+  width: 120px;      /* 終了は据え置き */
+}
+
+/* [IDX-151] スマホ時は次へをもう少し抑える */
+@media (max-width: 600px) {
+  #btnModalNext { max-width: 62vw; }
+}
