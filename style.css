@@ -259,3 +259,12 @@ html, body {
 @media (max-width: 600px) {
   #btnModalNext { max-width: 62vw; }
 }
+
+/* [IDX-160] 結果表示（メール本文風）を等幅で見やすく */
+.monoBlock {
+  font-family: Consolas, "Courier New", monospace;
+  font-size: 12px;
+  line-height: 1.55;
+  white-space: pre-wrap;
+}
+
