@@ -1,7 +1,7 @@
 /*
   ファイル: js/render.js
-  作成日時(JST): 2025-12-27 10:15:00
-  VERSION: 20251227-01
+  作成日時(JST): 2025-12-27 10:35:00
+  VERSION: 20251227-02
 
   画面仕様（Render担当）:
     - 開始前：出題グループ(quizPanel)は非表示、開始UIは表示
@@ -9,15 +9,19 @@
     - 回答は1回のみ（未回答時のみクリック有効）
     - 選択肢は行に応じて可変（2択/3択/4択）：空文字の選択肢は表示しない（空欄行を作らない）
     - 回答後：即モーダル表示（正解/不正解を大きく、正解=青/不正解=赤）
-    - モーダルのボタン配置：次へ(左寄せ/幅3倍)・終了(右寄せ)、文字は中央
+    - モーダルのボタン配置：次へ(左寄せ/幅3倍相当)・終了(右寄せ)、文字は中央
     - モーダルは内容が増えたらスクロール可能（はみ出し防止）
     - 結果発表モーダル：メール本文と同じ形式をポップアップ内に表示（解説は載せない）
+
+  重要（20251227-02 変更点）:
+    - [IDX-008] HistoryStore / histMap 未初期化でも落ちないガードを追加
+      → Edge95/IEモードで「スタート押しても動かない」症状の典型原因（例外停止）を回避
 */
 (function (global) {
   "use strict";
 
   var Render = {};
-  Render.VERSION = "20251227-01";
+  Render.VERSION = "20251227-02";
   Util.registerVersion("render.js", Render.VERSION);
 
   /* =========================
@@ -37,6 +41,35 @@
     var t = toStr(s);
     t = t.replace(/\u3000/g, " "); // 全角スペースも考慮
     return t.replace(/^\s+|\s+$/g, "") === "";
+  }
+
+  /* =========================================================
+     [IDX-008] 履歴ガード（HistoryStore未初期化でも落とさない）
+     - 目的：renderQuestion/renderResult で例外が出ると「押しても動かない」に見えるため
+     - 方針：存在しない場合は 0/0 として処理継続
+  ========================================================= */
+
+  function safeGetHist(idText) {
+    try {
+      if (typeof HistoryStore === "undefined") return { c: 0, w: 0 };
+      if (!State || !State.App) return { c: 0, w: 0 };
+      if (!State.App.histMap) return { c: 0, w: 0 };
+      return HistoryStore.get(State.App.histMap, idText || "");
+    } catch (e) {
+      return { c: 0, w: 0 };
+    }
+  }
+
+  function safeIncHist(idText, isCorrect) {
+    try {
+      if (typeof HistoryStore === "undefined") return false;
+      if (!State || !State.App) return false;
+      if (!State.App.histMap) return false;
+      HistoryStore.inc(State.App.histMap, idText || "", !!isCorrect);
+      return true;
+    } catch (e) {
+      return false;
+    }
   }
 
   /* =========================
@@ -75,8 +108,8 @@
     if (!info) return;
 
     var opened = State.App.openedAt || "(未設定)";
-    var htmlV = State.VERS && State.VERS.html ? State.VERS.html : "(不明)";
-    var cssV  = State.VERS && State.VERS.css  ? State.VERS.css  : "(不明)";
+    var htmlV = (State.VERS && State.VERS.html) ? State.VERS.html : "(不明)";
+    var cssV  = (State.VERS && State.VERS.css)  ? State.VERS.css  : "(不明)";
 
     info.textContent = "起動: " + opened + " / HTML: " + htmlV + " / CSS: " + cssV;
   };
@@ -180,8 +213,8 @@
     if (ans.isAnswered) st = ans.isCorrect ? "正解" : "不正解";
     Util.setText("metaStatus", st);
 
-    /* [IDX-071] 履歴（Cookie） */
-    var hist = HistoryStore.get(State.App.histMap, row.idText || "");
+    /* [IDX-071] 履歴（Cookie）※未初期化でも落とさない */
+    var hist = safeGetHist(row.idText || "");
     Util.setText("metaHist", "正解" + (hist.c || 0) + "回 / 不正解" + (hist.w || 0) + "回");
 
     /* [IDX-072] 選択肢描画（空文字は除外） */
@@ -219,9 +252,9 @@
             var res = Engine.selectAnswer(choiceText);
             if (!res || !res.ok) return;
 
-            /* [IDX-075] Cookie履歴更新 */
-            HistoryStore.inc(State.App.histMap, res.idText, !!res.isCorrect);
-            State.log("履歴更新: " + res.idText + " / " + (res.isCorrect ? "正解+1" : "不正解+1"));
+            /* [IDX-075] Cookie履歴更新（未初期化でも落とさない） */
+            var ok = safeIncHist(res.idText, !!res.isCorrect);
+            State.log("履歴更新: " + res.idText + " / " + (res.isCorrect ? "正解+1" : "不正解+1") + (ok ? "" : "（履歴無効）"));
 
             Render.renderQuestion();
             Render.renderFooter();
@@ -276,7 +309,7 @@
     if (fa) fa.style.display = (mode === "answer") ? "flex" : "none";
     if (fr) fr.style.display = (mode === "result") ? "flex" : "none";
 
-    /* [IDX-103] ボタン配置（左：次へ / 右：終了）※ボタン自体を寄せる、文字は中央 */
+    /* [IDX-103] ボタン配置（ボタン自体を左右、文字は中央） */
     if (mode === "answer") {
       var foot = el("modalFooterAnswer");
       if (foot) {
@@ -288,12 +321,12 @@
       var btnNext = el("btnModalNext");
       var btnEnd  = el("btnModalEnd");
       if (btnNext) {
-        btnNext.style.width = "60%";       // 「今の3倍」相当（目安）
-        btnNext.style.textAlign = "center"; // ボタン内文字は中央
+        btnNext.style.width = "60%";        // 次へ：幅3倍相当（目安）
+        btnNext.style.textAlign = "center"; // 文字は中央
       }
       if (btnEnd) {
-        btnEnd.style.width = "";           // そのまま
-        btnEnd.style.textAlign = "center"; // ボタン内文字は中央
+        btnEnd.style.width = "";            // そのまま
+        btnEnd.style.textAlign = "center";  // 文字は中央
       }
     }
 
@@ -311,9 +344,8 @@
 
   /* =========================================================
      [IDX-120] 回答結果モーダル
-       - 正解/不正解：大きく、正解=青 / 不正解=赤
+       - 正解/不正解：大きく、正解=青 / 不正解=赤（CSS側で isCorrect/isWrong を想定）
        - 解説は表示（回答モーダルのみ）
-       - 次へ/終了は footer の左右
   ========================================================= */
   Render.showAnswerModal = function (res) {
     var title = el("modalTitle");
@@ -324,7 +356,7 @@
     title.textContent = "回答結果";
 
     var okng = res.isCorrect ? "正解" : "不正解";
-    var cls = res.isCorrect ? "isCorrect" : "isWrong"; // CSS側で色(青/赤)想定
+    var cls = res.isCorrect ? "isCorrect" : "isWrong";
 
     var stats = res.stats || { total: 0, correct: 0, wrong: 0 };
 
@@ -352,7 +384,6 @@
        - 問題文/選択した答え/正解の答え を載せる
        - 解説は載せない
        - 「【今回の結果（全問）】」の後に1行空ける
-       - ヘッダー行（ID/カテゴリ/結果/履歴 正解/不正解）を入れる
   ========================================================= */
   Render.showResultModal = function () {
     var title = el("modalTitle");
@@ -382,11 +413,12 @@
     lines.push("【今回の結果（全問）】");
     lines.push(""); /* ← 1行空ける */
 
+    /* 見出しブロック（ユーザー指定形式） */
     lines.push("| ID | カテゴリ | 結果 |履歴 正解/不正解|");
     lines.push("問題");
     lines.push("選択した答え");
     lines.push("正解の答え");
-    lines.push(""); /* 見出しブロックの後の空行 */
+    lines.push("");
 
     for (var i = 0; i < details.length; i++) {
       var d = details[i] || {};
@@ -394,7 +426,8 @@
       var cat = toStr(d.category);
       var judge = d.ok ? "正解" : "不正解";
 
-      var histObj = HistoryStore.get(State.App.histMap, id);
+      /* [IDX-141] 履歴（未初期化でも落とさない） */
+      var histObj = safeGetHist(id);
       var hist = String(histObj.c || 0) + "/" + String(histObj.w || 0);
 
       lines.push("| " + id + " | " + cat + " | " + judge + " | " + hist + " |");
@@ -408,9 +441,7 @@
       lines.push("（明細なし）");
     }
 
-    /* [IDX-141] 表示はpre相当（monoBlockはCSSで pre-wrap を想定） */
     body.innerHTML = "<div class='monoBlock'>" + Util.esc(lines.join("\n")) + "</div>";
-
     showOverlay();
   };
 
