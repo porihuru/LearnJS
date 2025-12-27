@@ -65,8 +65,8 @@
     var lines = [];
     lines.push("| " + id + " | " + cat + " | " + judge + " | " + hist + " |");
     lines.push("問題: " + q);
-    lines.push("選択した答え: " + sel);
-    lines.push("正解の答え: " + cor);
+    lines.push("回答: " + sel);
+    lines.push("正解: " + cor);
     lines.push(""); /* ← 1行空ける（各問の区切り） */
     return lines.join("\r\n");
   }
