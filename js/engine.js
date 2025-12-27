@@ -48,31 +48,49 @@
     return out;
   }
 
-  function buildItem(row) {
-    /* [IDX-020] 選択肢（表示用キーは A/B/C/D） */
-    var opts = [
-      { key: "A", text: row.choice1 },
-      { key: "B", text: row.choice2 },
-      { key: "C", text: row.choice3 },
-      { key: "D", text: row.choice4 }
-    ];
+function buildItem(row) {
+  /* [IDX-020] 選択肢（空欄除外して 2択/3択/4択に自動対応） */
+  var keys = ["A", "B", "C", "D", "E", "F"];
 
-    /* [IDX-021] 選択肢テキストのシャッフル（keyも振り直して整形） */
-    var shuffled = Util.shuffle(opts);
-    var keys = ["A", "B", "C", "D"];
-    for (var i = 0; i < shuffled.length; i++) shuffled[i].key = keys[i];
+  // [IDX-020-01] trim（Util.trim が無い場合は String(...).replace(...) でも可）
+  var c1 = Util.trim(row.choice1 || "");
+  var c2 = Util.trim(row.choice2 || "");
+  var c3 = Util.trim(row.choice3 || "");
+  var c4 = Util.trim(row.choice4 || "");
 
-    return {
-      row: row,
-      ans: {
-        options: shuffled,
-        correctText: row.choice1,     /* [IDX-022] Choice1が正解 */
-        selectedText: "",
-        isAnswered: false,
-        isCorrect: false
-      }
-    };
+  // [IDX-020-02] 空欄は配列に入れない（＝ボタンが作られない）
+  var texts = [];
+  if (c1) texts.push(c1);
+  if (c2) texts.push(c2);
+  if (c3) texts.push(c3);
+  if (c4) texts.push(c4);
+
+  // [IDX-020-03] 正解は Choice1 固定（仕様）
+  var correctText = c1;
+
+  // [IDX-020-04] 念のため：Choice1 が空の異常データでも落とさない
+  if (!correctText && texts.length > 0) correctText = texts[0];
+
+  /* [IDX-021] 選択肢テキストのシャッフル（同一問題内では固定） */
+  Util.shuffle(texts);
+
+  // [IDX-021-01] key を A/B/C…で振り直して options 化
+  var options = [];
+  for (var i = 0; i < texts.length; i++) {
+    options.push({ key: keys[i] || String(i + 1), text: texts[i] });
   }
+
+  return {
+    row: row,
+    ans: {
+      options: options,
+      correctText: correctText,     /* [IDX-022] Choice1が正解 */
+      selectedText: "",
+      isAnswered: false,
+      isCorrect: false
+    }
+  };
+}
 
   function startSession(items, modeDesc) {
     var s = {
