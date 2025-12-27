@@ -1,261 +1,168 @@
 /*
   ファイル: js/app.js
-  作成日時(JST): 2025-12-27 11:45:00
-  VERSION: 20251227-02
+  作成日時(JST): 2025-12-26 20:00:00
+  VERSION: 20251226-01
 
-  目的:
-    - CSVLoader(正) を使って questions_fallback.csv を読み込み、State.App.rows を埋める
-    - Edge95/IEモードでも確実に動く（例外はログに出す）
-    - ボタンID/入力IDの多少のズレに強い（候補を複数持つ）
-
-  重要:
-    - CSVローダー名は CSVLoader（大文字）です
+  実装方針:
+    - 起動→CSV読込→カテゴリ作成→開始待ち
+    - ランダム/ID指定で開始→開始UI非表示→出題表示
+    - 回答後は即ポップアップ（次へ/終了）
+    - 全問終了または終了→結果発表（印刷/メール/閉じる）
 */
 (function (global) {
   "use strict";
 
   var App = {};
-  App.VERSION = "20251227-02";
+  App.VERSION = "20251226-01";
   Util.registerVersion("app.js", App.VERSION);
 
-  /* =========================
-     [IDX-001] 共通ユーティリティ
-  ========================= */
-
-  function byId(id) { return Util.byId(id); }
-
-  function s(v) { return (v === null || v === undefined) ? "" : String(v); }
-
-  function toInt(v, defVal) {
-    var n = parseInt(s(v), 10);
-    if (isNaN(n)) return defVal;
-    return n;
+  function getSelectedCategory() {
+    var sel = Util.byId("categorySelect");
+    if (!sel) return "__ALL__";
+    return sel.value || "__ALL__";
   }
 
-  function log(msg) {
-    try { State.log(msg); } catch (e) {}
-    try { if (global.Render && Render.renderLogs) Render.renderLogs(); } catch (e2) {}
+  function resetToIdle() {
+    State.App.session = null;
+    Render.setQuizMode(false);
+    Render.renderQuestion();
+    Render.renderFooter();
   }
 
-  /* [IDX-002] グローバル例外をログへ */
-  function installGlobalErrorHook() {
-    try {
-      global.onerror = function (msg, url, line, col, err) {
-        log("JS例外: " + msg + " @ " + url + ":" + line + (col ? (":" + col) : ""));
-        try { if (err && err.stack) log("stack: " + err.stack); } catch (e2) {}
-        return false;
+  /* [IDX-010] モーダルボタン */
+  function bindModalButtons() {
+    var btnNext = Util.byId("btnModalNext");
+    var btnEnd = Util.byId("btnModalEnd");
+    var btnPrint = Util.byId("btnModalPrint");
+    var btnMail = Util.byId("btnModalMail");
+    var btnClose = Util.byId("btnModalClose");
+
+    if (btnNext) {
+      btnNext.onclick = function () {
+        if (Engine.hasNext()) {
+          Engine.next();
+          Render.hideModal();
+          Render.renderQuestion();
+          Render.renderFooter();
+        } else {
+          /* 最終問題まで終了 */
+          Render.hideModal();
+          State.log("全問終了: 結果発表へ");
+          Render.showResultModal();
+        }
       };
-      log("診断: window.onerror を設定");
-    } catch (e) {}
-  }
+    }
 
-  /* [IDX-003] 先に見つかったIDへ onclick を設定 */
-  function bindFirst(ids, handler, label) {
-    for (var i = 0; i < ids.length; i++) {
-      var node = byId(ids[i]);
-      if (!node) continue;
-
-      node.onclick = function (ev) {
-        try { if (ev && ev.preventDefault) ev.preventDefault(); } catch (e0) {}
-        try { if (ev) ev.returnValue = false; } catch (e1) {} // IE系保険
-        try { handler(ev); } catch (e2) { log(label + " 例外: " + e2); }
-        return false;
+    if (btnEnd) {
+      btnEnd.onclick = function () {
+        Render.hideModal();
+        State.log("終了ボタン: 結果発表へ");
+        Render.showResultModal();
       };
-
-      log("UI結線: " + label + " -> #" + ids[i]);
-      return ids[i];
-    }
-    log("UI結線失敗: " + label + "（ID不一致）候補=" + ids.join(","));
-    return "";
-  }
-
-  function getSelectValueFirst(ids, defVal) {
-    for (var i = 0; i < ids.length; i++) {
-      var node = byId(ids[i]);
-      if (!node) continue;
-      return node.value;
-    }
-    return defVal;
-  }
-
-  function getValueFirst(ids, defVal) {
-    for (var i = 0; i < ids.length; i++) {
-      var node = byId(ids[i]);
-      if (!node) continue;
-      if (typeof node.value !== "undefined") return node.value;
-    }
-    return defVal;
-  }
-
-  /* =========================
-     [IDX-010] CSV読込（正: CSVLoader）
-  ========================= */
-
-  function getCsvLoader() {
-    // 互換のため候補を見に行く（基本は CSVLoader）
-    if (global.CSVLoader && global.CSVLoader.loadFallback) return global.CSVLoader;
-    if (global.CsvLoader && global.CsvLoader.loadFallback) return global.CsvLoader;
-    return null;
-  }
-
-  App.loadCsv = function () {
-    log("CSV読込開始（App側）: fallback");
-
-    var loader = getCsvLoader();
-    if (!loader) {
-      log("CSV読込失敗: CSVLoader.loadFallback が見つからない（csv_loader.js の読み込み順を確認）");
-      return;
     }
 
-    // CSVLoader.loadFallback(cb) は cb(err, rows) 形式
-    loader.loadFallback(function (err, rows) {
+    if (btnPrint) {
+      btnPrint.onclick = function () {
+        if (global.PrintManager && PrintManager.printLastResult) PrintManager.printLastResult();
+        else alert("印刷機能が読み込まれていません。");
+      };
+    }
+
+    if (btnMail) {
+      btnMail.onclick = function () {
+        if (global.MailManager && MailManager.composeMail) MailManager.composeMail();
+        else alert("メール機能が読み込まれていません。");
+      };
+    }
+
+    if (btnClose) {
+      btnClose.onclick = function () {
+        Render.hideModal();
+        State.log("結果発表: 閉じる → 開始待ちへ戻す");
+        resetToIdle();
+      };
+    }
+  }
+
+  /* [IDX-020] 開始UI */
+  function bindUI() {
+    var btnRandom = Util.byId("btnRandomStart");
+    var btnId = Util.byId("btnIdStart");
+    var btnClearHistory = Util.byId("btnClearHistory");
+
+    if (btnRandom) {
+      btnRandom.onclick = function () {
+        var cat = getSelectedCategory();
+        var n = Util.toInt(Util.byId("randomCount").value, 10);
+
+        Engine.startRandom(cat, n);
+        Render.setQuizMode(true);
+
+        Render.renderQuestion();
+        Render.renderFooter();
+      };
+    }
+
+    if (btnId) {
+      btnId.onclick = function () {
+        var cat = getSelectedCategory();
+        var sid = Util.toInt(Util.byId("startId").value, 1);
+        var n = Util.toInt(Util.byId("rangeCount").value, 10);
+
+        Engine.startFromId(cat, sid, n);
+        Render.setQuizMode(true);
+
+        Render.renderQuestion();
+        Render.renderFooter();
+      };
+    }
+
+    if (btnClearHistory) {
+      btnClearHistory.onclick = function () {
+        var ok = global.confirm("履歴を削除します。\nOKで全履歴を削除します。");
+        if (!ok) { State.log("履歴削除: キャンセル"); return; }
+
+        HistoryStore.clearAll();
+        State.App.histMap = {};
+        State.log("履歴削除: 完了");
+
+        Render.renderQuestion();
+      };
+    }
+  }
+
+  App.init = function () {
+    State.App.openedAt = Util.nowStamp();
+    State.App.histMap = HistoryStore.loadMap();
+
+    State.log("起動");
+    Render.renderTopInfo();
+    Render.renderFooter();
+    Render.renderLogs();
+
+    Render.setQuizMode(false);
+
+    CSVLoader.loadFallback(function (err) {
       if (err) {
-        log("CSV読込失敗: status=" + (err.status || "?") + " url=" + (err.url || "?"));
+        State.log("CSV読込失敗: " + err);
+        Render.renderFooter();
+        Render.renderQuestion();
         return;
       }
 
-      var n = (State.App.rows && State.App.rows.length) ? State.App.rows.length : 0;
-      log("CSV読込完了: rows=" + n);
+      Engine.buildCategories();
+      Render.renderCategories();
 
-      // カテゴリ生成（Engineに実装がある前提。無ければログだけ）
-      try {
-        if (global.Engine && Engine.buildCategories) Engine.buildCategories();
-        else log("注意: Engine.buildCategories が無い（カテゴリ件数表示が出ない可能性）");
-      } catch (e1) {
-        log("Engine.buildCategories 例外: " + e1);
-      }
-
-      try { if (global.Render && Render.renderCategories) Render.renderCategories(); } catch (e2) { log("Render.renderCategories 例外: " + e2); }
-      try { if (global.Render && Render.renderFooter) Render.renderFooter(); } catch (e3) {}
-      try { if (global.Render && Render.renderLogs) Render.renderLogs(); } catch (e4) {}
+      Render.renderTopInfo();
+      Render.renderFooter();
+      Render.renderQuestion();
     });
   };
 
-  /* =========================
-     [IDX-020] 開始前/開始後共通チェック
-  ========================= */
-
-  function ensureReadyOrLog() {
-    if (!global.State || !State.App) { log("開始不可: State.App が未初期化"); return false; }
-    if (!State.App.rows || State.App.rows.length === 0) { log("開始不可: rows が空（CSV未読込）"); return false; }
-    if (!global.Engine) { log("開始不可: Engine が未ロード"); return false; }
-    if (!global.Render) { log("開始不可: Render が未ロード"); return false; }
-    return true;
-  }
-
-  function startCommonAfterEngineStarted() {
-    try { if (Render.setQuizMode) Render.setQuizMode(true); } catch (e1) { log("Render.setQuizMode(true) 例外: " + e1); }
-    try { if (Render.renderQuestion) Render.renderQuestion(); } catch (e2) { log("Render.renderQuestion 例外: " + e2); }
-    try { if (Render.renderFooter) Render.renderFooter(); } catch (e3) {}
-  }
-
-  /* =========================
-     [IDX-030] ボタン処理
-  ========================= */
-
-  App.onRandomStart = function () {
-    log("クリック: ランダムスタート");
-    if (!ensureReadyOrLog()) return;
-
-    var category = getSelectValueFirst(["categorySelect"], "__ALL__");
-    var countVal = getValueFirst(["randomCount"], "10");
-    var count = toInt(countVal, 10);
-
-    log("開始要求(ランダム): category=" + category + " count=" + count);
-
-    try {
-      Engine.startRandom(category, count);
-      startCommonAfterEngineStarted();
-    } catch (e) {
-      log("Engine.startRandom 例外: " + e);
-    }
-  };
-
-  App.onIdStart = function () {
-    log("クリック: ID指定スタート");
-    if (!ensureReadyOrLog()) return;
-
-    var category = getSelectValueFirst(["categorySelect"], "__ALL__");
-    var startIdVal = getValueFirst(["startId"], "1");
-    // rangeCount / idCount など名称ブレ吸収
-    var countVal = getValueFirst(["rangeCount", "idCount"], "10");
-
-    var startId = toInt(startIdVal, 1);
-    var count = toInt(countVal, 10);
-
-    log("開始要求(ID指定): category=" + category + " startId=" + startId + " count=" + count);
-
-    try {
-      Engine.startFromId(category, startId, count);
-      startCommonAfterEngineStarted();
-    } catch (e) {
-      log("Engine.startFromId 例外: " + e);
-    }
-  };
-
-  /* =========================
-     [IDX-040] 初期化
-  ========================= */
-
-  App.bindUI = function () {
-    bindFirst(["btnRandomStart"], App.onRandomStart, "ランダムスタート");
-    bindFirst(["btnIdStart"], App.onIdStart, "ID指定スタート");
-
-    // モーダルボタン（存在する場合）
-    bindFirst(["btnModalNext"], function () {
-      log("モーダル: 次へ");
-      try {
-        if (Render.hideModal) Render.hideModal();
-        if (Engine.hasNext && Engine.hasNext()) {
-          Engine.next();
-          Render.renderQuestion();
-        } else {
-          if (Render.showResultModal) Render.showResultModal();
-        }
-      } catch (e) { log("モーダル次へ 例外: " + e); }
-    }, "モーダル:次へ");
-
-    bindFirst(["btnModalEnd"], function () {
-      log("モーダル: 終了");
-      try { if (Render.showResultModal) Render.showResultModal(); } catch (e) { log("モーダル終了 例外: " + e); }
-    }, "モーダル:終了");
-
-    bindFirst(["btnModalClose"], function () {
-      log("モーダル: 閉じる");
-      try { if (Render.hideModal) Render.hideModal(); } catch (e) {}
-    }, "モーダル:閉じる");
-  };
-
-  App.init = function () {
-    installGlobalErrorHook();
-    log("起動: App.init");
-
-    try { if (Render.renderTopInfo) Render.renderTopInfo(); } catch (e1) {}
-    try { if (Render.renderFooter) Render.renderFooter(); } catch (e2) {}
-    try { if (Render.setQuizMode) Render.setQuizMode(false); } catch (e3) {}
-
-    App.bindUI();
-    App.loadCsv();
-  };
-
-  function domReady(fn) {
-    if (document.readyState === "complete" || document.readyState === "interactive") {
-      setTimeout(fn, 0);
-      return;
-    }
-    if (document.addEventListener) {
-      document.addEventListener("DOMContentLoaded", fn, false);
-    } else {
-      document.attachEvent("onreadystatechange", function () {
-        if (document.readyState === "complete") fn();
-      });
-    }
-  }
-
-  domReady(function () {
-    try { App.init(); } catch (e) { log("App.init 例外: " + e); }
-  });
-
   global.App = App;
+
+  bindModalButtons();
+  bindUI();
+  App.init();
 
 })(window);
