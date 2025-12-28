@@ -48,31 +48,72 @@
     return out;
   }
 
-  function buildItem(row) {
-    /* [IDX-020] 選択肢（表示用キーは A/B/C/D） */
-    var opts = [
-      { key: "A", text: row.choice1 },
-      { key: "B", text: row.choice2 },
-      { key: "C", text: row.choice3 },
-      { key: "D", text: row.choice4 }
-    ];
+/* ===========================
+   修正対象: js/engine.js
+   修正内容: buildItem(row) を丸ごと差し替え
+   目的:
+     - Choice1が正解（仕様維持）
+     - 2択/3択/4択に自動対応（空欄Choiceは表示しない）
+     - 選択肢は毎回ランダム（ただし同一問題内で固定）
+   重要:
+     - Util.shuffle は「新しい配列を返す」実装なので、必ず代入する
+=========================== */
 
-    /* [IDX-021] 選択肢テキストのシャッフル（keyも振り直して整形） */
-    var shuffled = Util.shuffle(opts);
-    var keys = ["A", "B", "C", "D"];
-    for (var i = 0; i < shuffled.length; i++) shuffled[i].key = keys[i];
+// ★ここから差し替え★（engine.js の function buildItem(row){...} を丸ごと置換）
+function buildItem(row) {
 
-    return {
-      row: row,
-      ans: {
-        options: shuffled,
-        correctText: row.choice1,     /* [IDX-022] Choice1が正解 */
-        selectedText: "",
-        isAnswered: false,
-        isCorrect: false
-      }
-    };
+  /* [IDX-019] trim互換（Util.trim などに依存しない） */
+  function trimCompat(v) {
+    var t = (v === null || v === undefined) ? "" : String(v);
+    t = t.replace(/\u3000/g, " ");          // 全角スペース→半角
+    return t.replace(/^\s+|\s+$/g, "");     // 前後空白除去
   }
+
+  /* [IDX-020] Choice1〜4 を取得して空欄は除外（2択/3択/4択に自動対応） */
+  var c1 = trimCompat(row.choice1 || "");
+  var c2 = trimCompat(row.choice2 || "");
+  var c3 = trimCompat(row.choice3 || "");
+  var c4 = trimCompat(row.choice4 || "");
+
+  var texts = [];
+  if (c1) texts.push(c1);
+  if (c2) texts.push(c2);
+  if (c3) texts.push(c3);
+  if (c4) texts.push(c4);
+
+  /* [IDX-021] 正解は Choice1（仕様） */
+  var correctText = c1;
+
+  /* [IDX-022] 念のため：Choice1 が空の異常データでも落とさない */
+  if (!correctText && texts.length > 0) correctText = texts[0];
+
+  /* [IDX-023] 同一問題内の選択肢は開始時にシャッフルして固定
+     ※ Util.shuffle は「新しい配列を返す」ので必ず代入する */
+  texts = Util.shuffle(texts);
+
+  /* [IDX-024] options を生成（キーは A/B/C... を可変で振り直す） */
+  var keys = ["A", "B", "C", "D", "E", "F"];
+  var options = [];
+  for (var i = 0; i < texts.length; i++) {
+    options.push({
+      key: keys[i] || String(i + 1),
+      text: texts[i]
+    });
+  }
+
+  return {
+    row: row,
+    ans: {
+      options: options,
+      correctText: correctText,   // Choice1が正解（判定はテキスト一致）
+      selectedText: "",
+      isAnswered: false,
+      isCorrect: false
+    }
+  };
+}
+// ★ここまで差し替え★
+
 
   function startSession(items, modeDesc) {
     var s = {
