@@ -14,14 +14,25 @@
   Mail.VERSION = "20260211-01";
   Util.registerVersion("mail.js", Mail.VERSION);
 
+  var MAIL_LENGTH_LIMIT = 1500;
+
   /* [IDX-002] メール本文（セッション結果） */
   Mail.buildSessionText = function () {
     var sess = State.App.session;
     if (!sess) return "（セッションがありません）";
 
     var items = sess.items || [];
+    var stats = sess.stats || { total: 0, correct: 0, wrong: 0, answered: 0 };
 
     var lines = [];
+    lines.push("【結果】 " + Util.nowStamp());
+    lines.push("");
+    lines.push("名前: ___________________");
+    lines.push("");
+    lines.push("問題数: " + stats.total);
+    lines.push("正解数: " + stats.correct);
+    lines.push("不正解数: " + stats.wrong);
+    lines.push("");
     lines.push("| ID | カテゴリ | 結果 |履歴 正解/不正解|");
     lines.push("");
 
@@ -45,8 +56,25 @@
 
   /* [IDX-010] メーラー起動 */
   Mail.openMailer = function () {
-    var subject = "クイズ結果";
+    var sess = State.App.session;
+    var stats = (sess && sess.stats) ? sess.stats : { total: 0, correct: 0 };
+    
+    var subject = "結果 問題数" + stats.total + " 正解数" + stats.correct;
     var body = Mail.buildSessionText();
+
+    /* 1500文字以上の場合は簡潔な内容に変更 */
+    if (body.length >= MAIL_LENGTH_LIMIT) {
+      State.log("[mail] body length " + body.length + " >= " + MAIL_LENGTH_LIMIT + " (truncated)");
+      body = "【結果】 " + Util.nowStamp() + "\n" +
+             "名前: ___________________\n" +
+             "問題数: " + stats.total + "\n" +
+             "正解数: " + stats.correct + "\n" +
+             "不正解数: " + stats.wrong + "\n" +
+             "\n" +
+             "メール文字数超過のため省略";
+    } else {
+      State.log("[mail] body length " + body.length);
+    }
 
     State.log("[mail] mailto start");
     location.href = "mailto:?subject=" + encodeURIComponent(subject) + "&body=" + encodeURIComponent(body);
