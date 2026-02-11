@@ -11,6 +11,7 @@ html, body {
   font-family: "Segoe UI", "Meiryo", sans-serif;
   background: #fff;
   color: #222;
+  overflow-x: hidden;
 }
 
 .page {
@@ -30,7 +31,7 @@ html, body {
 
 /* [IDX-020] ツールバー */
 .toolbar { margin: 6px 0 14px 0; }
-.toolbarRow { font-size: 0; }
+.toolbarRow { font-size: 0; margin-bottom: 8px; }
 
 .startBox, .toolRight {
   display: inline-block;
@@ -38,13 +39,18 @@ html, body {
   margin-right: 10px;
   margin-bottom: 8px;
   font-size: 12px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
 
 .startBox {
+  width: 400px;
   padding: 6px 8px;
   border: 1px solid #d8d8d8;
   border-radius: 8px;
   background: #fff;
+  box-sizing: border-box;
 }
 
 .toolRight { margin-right: 0; }
@@ -78,6 +84,7 @@ html, body {
   border-radius: 8px;
   cursor: pointer;
   text-align: center; /* [IDX-031] 文字中央 */
+  margin-left: auto;
 }
 
 .btnPrimary { border: 1px solid #233447; background: #233447; color: #fff; }
@@ -146,6 +153,23 @@ html, body {
 .choiceBtn.isWrong   { border-color: #b85a5a; background: #fff5f5; }
 
 /* [IDX-060] ログ */
+#logPanel {
+  position: fixed;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  max-width: 1200px;
+  width: calc(100% - 36px);
+  margin: 0;
+  padding: 10px 14px;
+  border-radius: 10px;
+  border: 1px solid #d8d8d8;
+  border-bottom: none;
+  z-index: 100;
+  box-sizing: border-box;
+  background: #fff;
+}
+
 .logBox {
   border: 1px solid #d8d8d8;
   border-radius: 10px;
@@ -157,9 +181,41 @@ html, body {
   line-height: 1.45;
   height: 180px;
   overflow: auto;
+  margin-top: 8px;
+  transition: all 0.3s ease;
 }
 
-.footerBar { margin-top: 10px; font-size: 12px; color: #333; }
+.logBox.logBoxClosed {
+  height: 0;
+  padding: 0;
+  border: none;
+  overflow: hidden;
+  margin-top: 0;
+}
+
+#logPanel.logPanelClosed .footerBar {
+  height: 0;
+  overflow: hidden;
+  margin: 0;
+}
+
+.btnToggleLog {
+  height: 28px;
+  padding: 0 12px;
+  border: 1px solid #d8d8d8;
+  border-radius: 6px;
+  background: #f5f5f5;
+  color: #333;
+  font-size: 12px;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.btnToggleLog:hover {
+  background: #e8e8e8;
+}
+
+.footerBar { margin-top: 10px; font-size: 12px; color: #333; transition: all 0.3s ease; }
 .versionLine, .dataLine { white-space: pre-wrap; margin-top: 4px; }
 
 /* ========= モーダル ========= */
@@ -218,6 +274,8 @@ html, body {
 
 .modalSectionTitle { font-weight: 700; margin-top: 10px; margin-bottom: 4px; }
 
+.resultStats { font-size: 20px; margin-bottom: 6px; }
+
 /* [IDX-130] フッター：ボタン自体を左右へ（ボタン文字は中央のまま） */
 .modalFooter {
   margin-top: 12px;
@@ -253,6 +311,10 @@ html, body {
 
 #btnModalEnd {
   width: 120px;      /* 終了は据え置き */
+}
+
+#btnClearHistory {
+  margin-left: 0;    /* 左寄せ */
 }
 
 /* [IDX-151] スマホ時は次へをもう少し抑える */

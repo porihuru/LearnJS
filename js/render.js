@@ -126,6 +126,17 @@
 
     var row = cur.row;
     var ans = cur.ans;
+    var s = State.App.session;
+    var questionNum = "";
+    if (s && s.items) {
+      questionNum = (s.index + 1) + "/" + s.items.length + "問";
+    }
+
+    /* パネルタイトルを更新 */
+    var titleEl = Util.byId("quizPanelTitle");
+    if (titleEl) {
+      titleEl.textContent = "出題　" + questionNum;
+    }
 
     Util.setText("metaId", row.idText || "");
     Util.setText("metaCategory", row.category || "");
@@ -195,12 +206,18 @@
     if (!title || !body) return;
 
     setModal("answer");
-    title.textContent = "回答結果";
 
     var okng = res.isCorrect ? "正解" : "不正解";
     var cls = res.isCorrect ? "isCorrect" : "isWrong";
 
     var stats = res.stats || { total: 0, correct: 0, wrong: 0 };
+    var s = State.App.session;
+    var questionNum = "";
+    if (s && s.items) {
+      questionNum = " " + (s.index + 1) + "/" + s.items.length + "問";
+    }
+
+    title.textContent = "回答結果" + questionNum;
 
     var html = "";
     html += '<div class="resultTopLine ' + cls + '">' + Util.esc(okng) + "</div>";
@@ -242,11 +259,11 @@
     if (!histText) histText = "（履歴なし）\n";
 
     var html = "";
-    html += "<div>問題数: " + Util.esc(r.total) + "</div>";
-    html += "<div>回答数: " + Util.esc(r.answered) + "</div>";
-    html += "<div>正解数: " + Util.esc(r.correct) + "</div>";
-    html += "<div>不正解数: " + Util.esc(r.wrong) + "</div>";
-    html += "<div>正答率: " + Util.esc(r.rate) + "%</div>";
+    html += "<div class='resultStats'>問題数: " + Util.esc(r.total) + "</div>";
+    html += "<div class='resultStats'>回答数: " + Util.esc(r.answered) + "</div>";
+    html += "<div class='resultStats'>正解数: " + Util.esc(r.correct) + "</div>";
+    html += "<div class='resultStats'>不正解数: " + Util.esc(r.wrong) + "</div>";
+    html += "<div class='resultStats'>正答率: " + Util.esc(r.rate) + "%</div>";
 
     html += '<div class="modalSectionTitle">累積履歴（Cookie）</div>';
     html += "<div style='white-space:pre-wrap;'>" + Util.esc(histText) + "</div>";

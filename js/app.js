@@ -70,7 +70,7 @@
 
     if (btnMail) {
       btnMail.onclick = function () {
-        if (global.MailManager && MailManager.composeMail) MailManager.composeMail();
+        if (global.Mail && Mail.openMailer) Mail.openMailer();
         else alert("メール機能が読み込まれていません。");
       };
     }
@@ -89,6 +89,7 @@
     var btnRandom = Util.byId("btnRandomStart");
     var btnId = Util.byId("btnIdStart");
     var btnClearHistory = Util.byId("btnClearHistory");
+    var btnToggleLog = Util.byId("btnToggleLog");
 
     if (btnRandom) {
       btnRandom.onclick = function () {
@@ -127,6 +128,24 @@
         State.log("履歴削除: 完了");
 
         Render.renderQuestion();
+      };
+    }
+
+    if (btnToggleLog) {
+      btnToggleLog.onclick = function () {
+        var logBox = Util.byId("logBox");
+        var logPanel = Util.byId("logPanel");
+        if (!logBox || !logPanel) return;
+        var isClosed = logBox.classList.contains("logBoxClosed");
+        if (isClosed) {
+          logBox.classList.remove("logBoxClosed");
+          logPanel.classList.remove("logPanelClosed");
+          btnToggleLog.textContent = "閉じる";
+        } else {
+          logBox.classList.add("logBoxClosed");
+          logPanel.classList.add("logPanelClosed");
+          btnToggleLog.textContent = "開く";
+        }
       };
     }
   }

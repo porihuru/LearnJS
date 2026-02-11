@@ -40,12 +40,20 @@
           </select>
         </div>
 
+      </div>
+
+      <div class="toolbarRow">
+
         <!-- [IDX-022] ランダムスタート枠 -->
         <div class="startBox" id="boxRandomStart">
           <input id="randomCount" class="numInput" type="number" value="10" min="1" step="1">
           <span class="toolText">問</span>
           <button id="btnRandomStart" class="btnPrimary">ランダムスタート</button>
         </div>
+
+      </div>
+
+      <div class="toolbarRow">
 
         <!-- [IDX-023] ID指定スタート枠 -->
         <div class="startBox" id="boxIdStart">
@@ -57,17 +65,22 @@
           <button id="btnIdStart" class="btnPrimary">スタート</button>
         </div>
 
+      </div>
+
+      <div class="toolbarRow">
+
         <!-- [IDX-024] 履歴削除 -->
         <div class="toolRight">
           <button id="btnClearHistory" class="btnDanger">履歴を削除</button>
         </div>
 
       </div>
+
     </section>
 
     <!-- [IDX-030] 出題グループ（開始まで非表示、開始後に表示） -->
     <section class="panelBox" id="quizPanel" style="display:none;">
-      <div class="panelTitle">出題</div>
+      <div class="panelTitle" id="quizPanelTitle">出題</div>
 
       <!-- [IDX-031] 出題の中身（少し右寄せ） -->
       <div class="quizInner">
@@ -89,18 +102,21 @@
       </div>
     </section>
 
-    <!-- [IDX-040] ログ枠（常時表示） -->
-    <section class="panelBox" id="logPanel">
-      <div class="panelTitle">ログ</div>
-      <div id="logBox" class="logBox"></div>
-
-      <div class="footerBar">
-        <div id="versionLine" class="versionLine"></div>
-        <div id="dataLine" class="dataLine"></div>
-      </div>
-    </section>
-
   </div>
+
+  <!-- [IDX-040] ログ枠（ウィンドウの一番下に固定） -->
+  <section class="panelBox logPanelClosed" id="logPanel">
+    <div style="display:flex; justify-content:space-between; align-items:center;">
+      <div class="panelTitle" style="margin:0;">ログ</div>
+      <button id="btnToggleLog" class="btnToggleLog">開く</button>
+    </div>
+    <div id="logBox" class="logBox logBoxClosed"></div>
+
+    <div class="footerBar">
+      <div id="versionLine" class="versionLine"></div>
+      <div id="dataLine" class="dataLine"></div>
+    </div>
+  </section>
 
   <!-- [IDX-100] モーダル（回答結果／結果発表） -->
   <div id="modalOverlay" class="modalOverlay" style="display:none;">
