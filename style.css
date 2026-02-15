@@ -42,6 +42,7 @@ html, body {
   display: flex;
   align-items: center;
   gap: 6px;
+  flex-wrap: wrap;
 }
 
 .startBox {
@@ -301,6 +302,8 @@ html, body {
   .select { min-width: 220px; }
   .modalBox { top: 6%; }
   .modalBody { max-height: 60vh; }
+  .startBox { width: 100%; }
+  .startBox .btnPrimary { margin-left: 0; width: 100%; }
 }
 
 /* [IDX-150] 回答結果モーダル：次へボタンだけ幅を3倍（終了はそのまま） */
