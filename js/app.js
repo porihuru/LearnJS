@@ -164,6 +164,21 @@
     CSVLoader.loadFallback(function (err) {
       if (err) {
         State.log("CSV読込失敗: " + err);
+        var categorySelect = Util.byId("categorySelect");
+        if (categorySelect) {
+          categorySelect.innerHTML = "";
+          var option = document.createElement("option");
+          option.value = "__LOAD_ERROR__";
+          option.text = "CSV読込失敗（HTTPで起動してください）";
+          categorySelect.appendChild(option);
+          categorySelect.disabled = true;
+        }
+
+        var message = "問題CSVを読み込めませんでした。";
+        if (String(global.location.protocol).toLowerCase() === "file:") {
+          message += "\n\nindex.html の直接開きではなく、VS Codeで F5 を押して「問題集をデバッグ」を起動してください。";
+        }
+        global.alert(message);
         Render.renderFooter();
         Render.renderQuestion();
         return;
