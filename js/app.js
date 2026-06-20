@@ -29,6 +29,27 @@
     Render.renderFooter();
   }
 
+  function startPractice(mode) {
+    var countInput = Util.byId("randomCount");
+    var n = Util.toInt(countInput ? countInput.value : 10, 10);
+    var result = Engine.startPractice(mode, n);
+    if (!result || !result.ok) {
+      var messages = {
+        wrong: "間違えた問題はまだありません。",
+        unanswered: "未回答問題はありません。",
+        neverCorrect: "回答済みで、一度も正解していない問題はありません。",
+        text: "記述問題がありません。",
+        balanced: "出題できる問題がありません。"
+      };
+      global.alert(messages[mode] || "対象の問題がありません。");
+      return;
+    }
+
+    Render.setQuizMode(true);
+    Render.renderQuestion();
+    Render.renderFooter();
+  }
+
   /* [IDX-010] モーダルボタン */
   function bindModalButtons() {
     var btnNext = Util.byId("btnModalNext");
@@ -87,7 +108,14 @@
   /* [IDX-020] 開始UI */
   function bindUI() {
     var btnRandom = Util.byId("btnRandomStart");
-    var btnId = Util.byId("btnIdStart");
+    var btnSequential = Util.byId("btnSequentialStart");
+    var categorySelect = Util.byId("categorySelect");
+    var analysisCategorySelect = Util.byId("analysisCategorySelect");
+    var btnPracticeWrong = Util.byId("btnPracticeWrong");
+    var btnPracticeUnanswered = Util.byId("btnPracticeUnanswered");
+    var btnPracticeNeverCorrect = Util.byId("btnPracticeNeverCorrect");
+    var btnPracticeText = Util.byId("btnPracticeText");
+    var btnPracticeBalanced = Util.byId("btnPracticeBalanced");
     var btnClearHistory = Util.byId("btnClearHistory");
     var btnToggleLog = Util.byId("btnToggleLog");
 
@@ -104,11 +132,31 @@
       };
     }
 
-    if (btnId) {
-      btnId.onclick = function () {
+    if (categorySelect) {
+      categorySelect.onchange = function () {
+        Render.renderStartQuestions(getSelectedCategory());
+      };
+    }
+
+    if (analysisCategorySelect) {
+      analysisCategorySelect.onchange = function () {
+        Render.renderCategoryAnalysis();
+      };
+    }
+
+    if (btnPracticeWrong) btnPracticeWrong.onclick = function () { startPractice("wrong"); };
+    if (btnPracticeUnanswered) btnPracticeUnanswered.onclick = function () { startPractice("unanswered"); };
+    if (btnPracticeNeverCorrect) btnPracticeNeverCorrect.onclick = function () { startPractice("neverCorrect"); };
+    if (btnPracticeText) btnPracticeText.onclick = function () { startPractice("text"); };
+    if (btnPracticeBalanced) btnPracticeBalanced.onclick = function () { startPractice("balanced"); };
+
+    if (btnSequential) {
+      btnSequential.onclick = function () {
         var cat = getSelectedCategory();
-        var sid = Util.toInt(Util.byId("startId").value, 1);
+        var startSelect = Util.byId("startQuestionSelect");
+        var sid = Util.toInt(startSelect ? startSelect.value : "", 0);
         var n = Util.toInt(Util.byId("rangeCount").value, 10);
+        if (sid < 1) return;
 
         Engine.startFromId(cat, sid, n);
         Render.setQuizMode(true);
@@ -128,6 +176,7 @@
         State.log("履歴削除: 完了");
 
         Render.renderQuestion();
+        Render.renderAnalysis();
       };
     }
 
@@ -186,6 +235,8 @@
 
       Engine.buildCategories();
       Render.renderCategories();
+      Render.renderStartQuestions(getSelectedCategory());
+      Render.renderAnalysis();
 
       Render.renderTopInfo();
       Render.renderFooter();

@@ -14,8 +14,26 @@
   HistoryStore.VERSION = "20251226-01";
   Util.registerVersion("history_store.js", HistoryStore.VERSION);
 
-  /* [IDX-010] Cookieキー */
-  HistoryStore.KEY = "quiz_hist";
+  /* [IDX-010] HTMLファイル名ごとにCookieキーを分ける */
+  function buildCookieKey() {
+    var path = "";
+    try { path = String(global.location.pathname || ""); } catch (e) {}
+
+    var slash = path.lastIndexOf("/");
+    var fileName = (slash >= 0) ? path.substring(slash + 1) : path;
+    if (!fileName) fileName = "index";
+
+    var dot = fileName.lastIndexOf(".");
+    if (dot > 0) fileName = fileName.substring(0, dot);
+
+    try { fileName = encodeURIComponent(fileName).replace(/%/g, "_"); } catch (e2) {}
+    fileName = fileName.replace(/[^A-Za-z0-9_-]/g, "_");
+    if (!fileName) fileName = "index";
+
+    return "quiz_hist_" + fileName;
+  }
+
+  HistoryStore.KEY = buildCookieKey();
 
   /* [IDX-020] map形式: { "1": {c:2,w:1}, ... } */
   HistoryStore.loadMap = function () {

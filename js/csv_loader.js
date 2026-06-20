@@ -159,6 +159,7 @@
 
       var idText = pickCell(State.CONFIG.columns.id, headerMap, row);
       var cat = pickCell(State.CONFIG.columns.category, headerMap, row);
+      var type = pickCell(State.CONFIG.columns.type, headerMap, row);
       var q = pickCell(State.CONFIG.columns.question, headerMap, row);
 
       var c1 = pickCell(State.CONFIG.columns.choice1, headerMap, row);
@@ -175,6 +176,7 @@
         idText: String(idText || ""),
         idNum: idNum,
         category: String(cat || ""),
+        type: String(type || "choice").toLowerCase(),
         question: String(q || ""),
         choice1: String(c1 || ""),
         choice2: String(c2 || ""),

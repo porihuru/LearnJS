@@ -2,7 +2,7 @@
   "version": "0.2.0",
   "configurations": [
     {
-      "name": "問題集をデバッグ",
+      "name": "問題集を起動",
       "type": "node",
       "request": "launch",
       "program": "${workspaceFolder}/server.js",
@@ -11,9 +11,8 @@
       "serverReadyAction": {
         "pattern": "Quiz server ready: (http://\\S+)",
         "uriFormat": "%s",
-        "action": "debugWithEdge"
+        "action": "openExternally"
       }
     }
   ]
 }
-

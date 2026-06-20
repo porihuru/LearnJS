@@ -48,6 +48,14 @@
     return out;
   }
 
+  Engine.getRowsForCategory = function (category) {
+    var rows = filterByCategory(State.App.rows || [], category);
+    rows.sort(function (a, b) {
+      return (a.idNum || 0) - (b.idNum || 0);
+    });
+    return rows;
+  };
+
 /* ===========================
    修正対象: js/engine.js
    修正内容: buildItem(row) を丸ごと差し替え
@@ -83,6 +91,8 @@ function buildItem(row) {
 
   /* [IDX-021] 正解は Choice1（仕様） */
   var correctText = c1;
+  var answerType = String(row.type || "choice").toLowerCase();
+  if (answerType !== "text") answerType = "choice";
 
   /* [IDX-022] 念のため：Choice1 が空の異常データでも落とさない */
   if (!correctText && texts.length > 0) correctText = texts[0];
@@ -105,6 +115,7 @@ function buildItem(row) {
     row: row,
     ans: {
       options: options,
+      type: answerType,
       correctText: correctText,   // Choice1が正解（判定はテキスト一致）
       selectedText: "",
       isAnswered: false,
@@ -144,13 +155,84 @@ function buildItem(row) {
     State.log("出題開始(ランダム): category=" + (category || "ALL") + " count=" + count + " actual=" + picked.length);
   };
 
+  function getPracticeRows(mode) {
+    var rows = State.App.rows || [];
+    var histMap = State.App.histMap || {};
+    var out = [];
+
+    for (var i = 0; i < rows.length; i++) {
+      var row = rows[i];
+      var hist = HistoryStore.get(histMap, row.idText || "");
+      var c = hist.c || 0;
+      var w = hist.w || 0;
+      var attempts = c + w;
+      var match = false;
+
+      if (mode === "wrong") match = w > 0;
+      else if (mode === "unanswered") match = attempts === 0;
+      else if (mode === "neverCorrect") match = attempts > 0 && c === 0;
+      else if (mode === "text") match = String(row.type || "choice").toLowerCase() === "text";
+      else if (mode === "balanced") match = true;
+
+      if (match) out.push(row);
+    }
+    return out;
+  }
+
+  function pickBalanced(rows, count) {
+    var groups = {};
+    var names = [];
+    var picked = [];
+
+    for (var i = 0; i < rows.length; i++) {
+      var name = rows[i].category || "";
+      if (!groups[name]) {
+        groups[name] = [];
+        names.push(name);
+      }
+      groups[name].push(rows[i]);
+    }
+
+    names = Util.shuffle(names);
+    for (var n = 0; n < names.length; n++) groups[names[n]] = Util.shuffle(groups[names[n]]);
+
+    while (picked.length < count) {
+      var added = false;
+      for (var j = 0; j < names.length && picked.length < count; j++) {
+        var group = groups[names[j]];
+        if (group.length > 0) {
+          picked.push(group.shift());
+          added = true;
+        }
+      }
+      if (!added) break;
+    }
+    return picked;
+  }
+
+  Engine.startPractice = function (mode, count) {
+    var rows = getPracticeRows(mode);
+    var n = count;
+    if (n < 1) n = 1;
+    if (n > rows.length) n = rows.length;
+
+    var selectedRows = (mode === "balanced")
+      ? pickBalanced(rows, n)
+      : Util.shuffle(rows).slice(0, n);
+
+    var items = [];
+    for (var i = 0; i < selectedRows.length; i++) items.push(buildItem(selectedRows[i]));
+
+    if (items.length === 0) return { ok: false, count: 0 };
+
+    startSession(items, "おすすめ学習:" + mode);
+    State.log("出題開始(おすすめ学習): mode=" + mode + " count=" + count + " actual=" + items.length);
+    return { ok: true, count: items.length };
+  };
+
   /* [IDX-040] ID指定スタート（カテゴリ内でID>=startIdをID昇順で） */
   Engine.startFromId = function (category, startId, count) {
-    var rows = filterByCategory(State.App.rows || [], category);
-
-    rows.sort(function (a, b) {
-      return (a.idNum || 0) - (b.idNum || 0);
-    });
+    var rows = Engine.getRowsForCategory(category);
 
     var out = [];
     for (var i = 0; i < rows.length; i++) {
@@ -199,7 +281,9 @@ function buildItem(row) {
 
     ans.isAnswered = true;
     ans.selectedText = String(choiceText || "");
-    ans.isCorrect = (String(ans.selectedText) === String(ans.correctText));
+    ans.isCorrect = (ans.type === "text")
+      ? (normalizeTextAnswer(ans.selectedText) === normalizeTextAnswer(ans.correctText))
+      : (String(ans.selectedText) === String(ans.correctText));
 
     s.stats.answered++;
     if (ans.isCorrect) s.stats.correct++;
@@ -225,6 +309,27 @@ function buildItem(row) {
       }
     };
   };
+
+  function normalizeTextAnswer(value) {
+    var text = String(value === null || value === undefined ? "" : value);
+
+    /* 全角・半角をそろえる（対応ブラウザでは半角カナも正規化） */
+    try {
+      if (text.normalize) text = text.normalize("NFKC");
+    } catch (e) {}
+
+    /* normalize非対応ブラウザ向けの全角英数字・記号変換 */
+    text = text.replace(/\u3000/g, " ");
+    text = text.replace(/[！-～]/g, function (ch) {
+      return String.fromCharCode(ch.charCodeAt(0) - 0xFEE0);
+    });
+
+    /* 空白、句読点、引用符、括弧の有無は採点に影響させない */
+    text = text.replace(/[\s、。，．,.\u30FB・「」『』（）()\[\]［］【】〈〉《》"'`]/g, "");
+
+    /* 英語の大文字・小文字をそろえる */
+    return text.toLowerCase();
+  }
 
   /* [IDX-060] 結果発表用データ生成（印刷/メール用） */
   Engine.buildResultSnapshot = function () {

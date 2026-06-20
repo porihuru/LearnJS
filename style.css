@@ -1,7 +1,7 @@
 /*
   ファイル: style.css
   作成日時(JST): 2025-12-26 20:00:00
-  VERSION(CSS): 20251226-01
+  VERSION(CSS): 20260621-01
 */
 
 /* [IDX-001] 基本 */
@@ -67,6 +67,17 @@ html, body {
   min-width: 260px;
 }
 
+.startQuestionBox {
+  width: 100%;
+  max-width: 720px;
+}
+
+.startQuestionSelect {
+  flex: 1;
+  min-width: 280px;
+  max-width: 470px;
+}
+
 .numInput {
   width: 70px;
   height: 32px;
@@ -103,6 +114,134 @@ html, body {
 
 .panelTitle { font-size: 14px; font-weight: 700; margin-bottom: 8px; }
 
+/* 回答分析 */
+.analysisPanel { margin-bottom: 90px; }
+.analysisHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+.analysisHeader .panelTitle { margin-bottom: 0; }
+.analysisSummary {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(110px, 1fr));
+  gap: 8px;
+  margin-top: 12px;
+}
+.summaryCard {
+  border: 1px solid #e1e5e9;
+  border-radius: 8px;
+  background: #f8fafc;
+  padding: 10px;
+}
+.summaryLabel {
+  display: block;
+  color: #66717d;
+  font-size: 12px;
+}
+.summaryValue {
+  display: block;
+  margin-top: 4px;
+  font-size: 22px;
+  font-weight: 700;
+}
+.analysisBlock {
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid #eceff2;
+}
+.analysisBlockTitle {
+  margin-bottom: 8px;
+  font-size: 13px;
+  font-weight: 700;
+}
+.stackedBar, .rateBar {
+  display: flex;
+  width: 100%;
+  height: 18px;
+  overflow: hidden;
+  border-radius: 9px;
+  background: #e8edf2;
+}
+.stackedCorrect { background: #3978c5; }
+.stackedWrong { background: #d26969; }
+.analysisLegend, .categoryStats {
+  margin-top: 7px;
+  color: #4c5661;
+  font-size: 12px;
+}
+.analysisColumns {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 18px;
+}
+.analysisColumn { min-width: 0; }
+.analysisSelect {
+  width: 100%;
+  max-width: 100%;
+}
+.rateBar {
+  margin-top: 8px;
+  height: 12px;
+}
+.rateBarFill { background: #3978c5; }
+.reviewRow {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 78px;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 8px;
+}
+.reviewName {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
+}
+.reviewRate {
+  text-align: right;
+  font-size: 12px;
+  font-weight: 700;
+}
+.analysisEmpty {
+  color: #77818c;
+  font-size: 12px;
+}
+.practiceActions {
+  margin-top: 14px;
+  padding: 12px;
+  border: 1px solid #dfe5eb;
+  border-radius: 8px;
+  background: #fbfcfd;
+}
+.practiceTitle {
+  font-size: 13px;
+  font-weight: 700;
+}
+.practiceHint {
+  margin-top: 3px;
+  color: #6b7580;
+  font-size: 11px;
+}
+.practiceButtons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 9px;
+}
+.btnPractice {
+  min-height: 34px;
+  padding: 6px 12px;
+  border: 1px solid #7a8da3;
+  border-radius: 8px;
+  background: #fff;
+  color: #26384a;
+  cursor: pointer;
+}
+.btnPractice:hover { background: #eef4fa; }
+.btnPractice:active { transform: translateY(1px); }
+
 /* [IDX-050] 出題内側を10%程度右寄せ */
 .quizInner { margin-left: 10%; }
 
@@ -115,6 +254,26 @@ html, body {
 
 .choiceHint { font-size: 12px; color: #666; margin: 6px 0 8px 0; }
 .choices { max-width: 420px; }
+
+.textAnswerArea {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.textAnswerInput {
+  flex: 1;
+  min-width: 0;
+  box-sizing: border-box;
+  padding: 9px 10px;
+  border: 1px solid #aeb7c2;
+  border-radius: 4px;
+  font-size: 16px;
+}
+
+.textAnswerButton {
+  white-space: nowrap;
+}
 
 .choiceBtn {
   border: 1px solid #d2d2d2;
@@ -300,6 +459,15 @@ html, body {
 @media (max-width: 600px) {
   .quizInner { margin-left: 0; }
   .select { min-width: 220px; }
+  .startQuestionBox { align-items: stretch; }
+  .startQuestionSelect {
+    width: 100%;
+    min-width: 0;
+    max-width: none;
+  }
+  .analysisSummary { grid-template-columns: repeat(2, minmax(100px, 1fr)); }
+  .analysisColumns { grid-template-columns: 1fr; gap: 0; }
+  .btnPractice { width: 100%; }
   .modalBox { top: 6%; }
   .modalBody { max-height: 60vh; }
   .startBox { width: 100%; }
@@ -331,5 +499,101 @@ html, body {
   font-size: 12px;
   line-height: 1.55;
   white-space: pre-wrap;
+}
+
+/* [IDX-900] 読みやすさ・コントラスト調整 */
+html, body {
+  font-size: 16px;
+  background: #eef2f6;
+  color: #17212b;
+}
+
+.appTitle { font-size: 20px; font-weight: 800; color: #10243a; }
+.topInfo { font-size: 13px; color: #34495e; line-height: 1.4; }
+
+.startBox, .toolRight { font-size: 14px; }
+.startBox {
+  border-color: #aebdca;
+  box-shadow: 0 1px 4px rgba(29, 48, 66, 0.06);
+}
+.toolLabel, .toolText { font-size: 14px; color: #263b4f; }
+
+.select, .numInput {
+  border-color: #8fa1b2;
+  color: #17212b;
+  font-size: 14px;
+}
+.numInput { font-size: 15px; }
+
+.btnPrimary, .btnDanger {
+  min-height: 36px;
+  font-size: 14px;
+  font-weight: 700;
+}
+.btnPrimary { border-color: #102f4f; background: #174f82; }
+.btnDanger { border-color: #711c1c; background: #a52a2a; }
+
+.panelBox {
+  border-color: #aebdca;
+  box-shadow: 0 2px 8px rgba(29, 48, 66, 0.09);
+}
+.panelTitle { font-size: 17px; font-weight: 800; color: #17324d; }
+
+.summaryCard {
+  border-color: #b9c6d1;
+  background: #f2f6fa;
+}
+.summaryLabel { color: #41566a; font-size: 13px; }
+.summaryValue { font-size: 25px; }
+.analysisBlock { border-top-color: #c8d2dc; }
+.analysisBlockTitle, .practiceTitle { font-size: 15px; }
+.stackedBar, .rateBar { background: #d5dee7; }
+.stackedCorrect, .rateBarFill { background: #1764ad; }
+.stackedWrong { background: #bd4040; }
+.analysisLegend, .categoryStats,
+.reviewName, .reviewRate, .analysisEmpty { font-size: 14px; }
+.analysisLegend, .categoryStats { color: #34495e; }
+.analysisEmpty { color: #53677a; }
+
+.practiceActions {
+  border-color: #aebdca;
+  background: #f2f6fa;
+}
+.practiceHint { color: #455b70; font-size: 13px; }
+.btnPractice {
+  border-color: #526e89;
+  color: #17324d;
+  font-size: 14px;
+  font-weight: 700;
+}
+.btnPractice:hover { background: #e3eef8; }
+
+.metaRow { font-size: 14px; color: #263b4f; }
+.qText { font-size: 23px; font-weight: 800; color: #101820; line-height: 1.4; }
+.choiceHint { font-size: 14px; color: #475b6e; }
+.choiceBtn { border-color: #9eafbf; }
+.choiceBtn:hover { background: #edf4fa; border-color: #557b9e; }
+.choiceKey {
+  border-color: #8499ac;
+  font-size: 14px;
+  color: #24394c;
+}
+.choiceText { font-size: 16px; color: #17212b; }
+.choiceBtn.isCorrect { border-color: #287a35; background: #e7f6e9; }
+.choiceBtn.isWrong { border-color: #a52a2a; background: #fdeaea; }
+
+.logBox, .footerBar, .btnToggleLog { font-size: 13px; }
+.modalOverlay { background: rgba(0, 0, 0, 0.48); }
+.modalBox { border-color: #8fa1b2; }
+.modalTitle { font-size: 19px; font-weight: 800; color: #17324d; }
+.modalBody { font-size: 16px; }
+.resultTopLine.isCorrect { color: #12569a; }
+.resultTopLine.isWrong { color: #a51f1f; }
+
+@media (max-width: 600px) {
+  html, body { font-size: 15px; }
+  .appTitle { font-size: 18px; }
+  .qText { font-size: 20px; }
+  .choiceText { font-size: 15px; }
 }
 

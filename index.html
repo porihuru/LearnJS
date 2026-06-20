@@ -12,7 +12,7 @@
   <!-- [IDX-002] スマホ対応 -->
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>会計法規　問題集</title>
-  <link rel="stylesheet" href="style.css?v=20251226-01">
+  <link rel="stylesheet" href="style.css?v=20260621-01">
 </head>
 
 <body>
@@ -55,27 +55,69 @@
 
       <div class="toolbarRow">
 
-        <!-- [IDX-023] ID指定スタート枠 -->
-        <div class="startBox" id="boxIdStart">
-          <span class="toolText">ID</span>
-          <input id="startId" class="numInput" type="number" value="1" min="1" step="1">
+        <!-- [IDX-023] 開始問題指定スタート枠 -->
+        <div class="startBox startQuestionBox" id="boxSequentialStart">
+          <span class="toolText">開始問題</span>
+          <select id="startQuestionSelect" class="select startQuestionSelect">
+            <option value="">問題を読み込み中...</option>
+          </select>
           <span class="toolText">から</span>
           <input id="rangeCount" class="numInput" type="number" value="10" min="1" step="1">
           <span class="toolText">問</span>
-          <button id="btnIdStart" class="btnPrimary">スタート</button>
+          <button id="btnSequentialStart" class="btnPrimary">スタート</button>
         </div>
 
       </div>
 
-      <div class="toolbarRow">
+    </section>
 
-        <!-- [IDX-024] 履歴削除 -->
-        <div class="toolRight">
-          <button id="btnClearHistory" class="btnDanger">履歴を削除</button>
-        </div>
-
+    <section class="panelBox analysisPanel" id="analysisPanel">
+      <div class="analysisHeader">
+        <div class="panelTitle">これまでの回答分析</div>
+        <button id="btnClearHistory" class="btnDanger">履歴を削除</button>
       </div>
 
+      <div class="analysisSummary">
+        <div class="summaryCard"><span class="summaryLabel">回答回数</span><span id="analysisAttempts" class="summaryValue">0</span></div>
+        <div class="summaryCard"><span class="summaryLabel">正答率</span><span id="analysisRate" class="summaryValue">0%</span></div>
+        <div class="summaryCard"><span class="summaryLabel">未回答問題</span><span id="analysisUnanswered" class="summaryValue">0</span></div>
+        <div class="summaryCard"><span class="summaryLabel">苦手問題</span><span id="analysisWeak" class="summaryValue">0</span></div>
+      </div>
+
+      <div class="practiceActions">
+        <div class="practiceTitle">おすすめ学習</div>
+        <div class="practiceHint">出題数は上の「ランダム」の問題数を使います。</div>
+        <div class="practiceButtons">
+          <button id="btnPracticeWrong" class="btnPractice">間違えた問題を復習</button>
+          <button id="btnPracticeUnanswered" class="btnPractice">未回答問題に挑戦</button>
+          <button id="btnPracticeNeverCorrect" class="btnPractice">一度も正解していない問題</button>
+          <button id="btnPracticeText" class="btnPractice">記述問題だけに挑戦</button>
+          <button id="btnPracticeBalanced" class="btnPractice">全カテゴリからバランスよく出題</button>
+        </div>
+      </div>
+
+      <div class="analysisBlock">
+        <div class="analysisBlockTitle">全体の正解・不正解</div>
+        <div class="stackedBar">
+          <div id="overallCorrectBar" class="stackedCorrect"></div>
+          <div id="overallWrongBar" class="stackedWrong"></div>
+        </div>
+        <div id="overallLegend" class="analysisLegend">まだ回答履歴がありません</div>
+      </div>
+
+      <div class="analysisColumns">
+        <div class="analysisBlock analysisColumn">
+          <div class="analysisBlockTitle">カテゴリ詳細</div>
+          <select id="analysisCategorySelect" class="select analysisSelect"></select>
+          <div id="categoryStats" class="categoryStats"></div>
+          <div class="rateBar"><div id="categoryRateBar" class="rateBarFill"></div></div>
+        </div>
+
+        <div class="analysisBlock analysisColumn">
+          <div class="analysisBlockTitle">要復習カテゴリ 上位5件</div>
+          <div id="reviewCategoryList" class="reviewCategoryList"></div>
+        </div>
+      </div>
     </section>
 
     <!-- [IDX-030] 出題グループ（開始まで非表示、開始後に表示） -->
@@ -96,7 +138,7 @@
           <div class="qText" id="questionText">（未開始）</div>
         </div>
 
-        <div class="choiceHint">選択肢（毎回ランダム表示 / 回答は1回のみ）</div>
+        <div id="answerHint" class="choiceHint">選択肢（毎回ランダム表示 / 回答は1回のみ）</div>
         <div id="choices" class="choices"></div>
 
       </div>

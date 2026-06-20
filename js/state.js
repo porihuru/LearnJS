@@ -11,7 +11,7 @@
   Util.registerVersion("state.js", State.VERSION);
 
   /* [IDX-010] 画面右上の表記 */
-  State.VERS = { html: "20251226-01", css: "20251226-01" };
+  State.VERS = { html: "20251226-01", css: "20260621-01" };
 
   /* [IDX-020] CSV列（Choice1＝正解扱い） */
   State.CONFIG = {
@@ -22,6 +22,7 @@
     columns: {
       id: ["ID", "QID"],
       category: ["Category"],
+      type: ["Type"],
       question: ["Question"],
       choice1: ["Choice1"],
       choice2: ["Choice2"],

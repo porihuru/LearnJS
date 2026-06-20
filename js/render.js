@@ -41,6 +41,185 @@
     }
   };
 
+  Render.renderStartQuestions = function (category) {
+    var sel = Util.byId("startQuestionSelect");
+    if (!sel) return;
+
+    while (sel.options.length > 0) sel.remove(0);
+
+    var rows = Engine.getRowsForCategory(category);
+    for (var i = 0; i < rows.length; i++) {
+      var row = rows[i];
+      var question = String(row.question || "").replace(/\s+/g, " ");
+      if (question.length > 42) question = question.substring(0, 42) + "...";
+
+      var opt = document.createElement("option");
+      opt.value = String(row.idNum || row.idText || "");
+      opt.textContent = (i + 1) + "問目：" + question;
+      sel.appendChild(opt);
+    }
+
+    if (sel.options.length > 0) sel.selectedIndex = 0;
+    sel.disabled = rows.length === 0;
+  };
+
+  function buildAnalysis() {
+    var rows = State.App.rows || [];
+    var histMap = State.App.histMap || {};
+    var categories = {};
+    var totalCorrect = 0;
+    var totalWrong = 0;
+    var unanswered = 0;
+    var weak = 0;
+
+    for (var i = 0; i < rows.length; i++) {
+      var row = rows[i] || {};
+      var category = row.category || "（カテゴリなし）";
+      var hist = HistoryStore.get(histMap, row.idText || "");
+      var c = hist.c || 0;
+      var w = hist.w || 0;
+      var attempts = c + w;
+
+      if (!categories[category]) {
+        categories[category] = { name: category, c: 0, w: 0, questions: 0, unanswered: 0 };
+      }
+      categories[category].c += c;
+      categories[category].w += w;
+      categories[category].questions++;
+
+      totalCorrect += c;
+      totalWrong += w;
+      if (attempts === 0) {
+        unanswered++;
+        categories[category].unanswered++;
+      }
+      if (attempts >= 2 && (w >= 2 || (c / attempts) < 0.5)) weak++;
+    }
+
+    var list = [];
+    for (var key in categories) {
+      if (!categories.hasOwnProperty(key)) continue;
+      var item = categories[key];
+      item.attempts = item.c + item.w;
+      item.rate = item.attempts > 0 ? Math.round((item.c / item.attempts) * 100) : 0;
+      list.push(item);
+    }
+    list.sort(function (a, b) { return String(a.name).localeCompare(String(b.name)); });
+
+    return {
+      correct: totalCorrect,
+      wrong: totalWrong,
+      attempts: totalCorrect + totalWrong,
+      unanswered: unanswered,
+      weak: weak,
+      categories: list
+    };
+  }
+
+  function setWidth(id, percent) {
+    var el = Util.byId(id);
+    if (el) el.style.width = percent + "%";
+  }
+
+  Render.renderCategoryAnalysis = function () {
+    var data = buildAnalysis();
+    var sel = Util.byId("analysisCategorySelect");
+    if (!sel) return;
+
+    var item = null;
+    for (var i = 0; i < data.categories.length; i++) {
+      if (String(data.categories[i].name) === String(sel.value)) {
+        item = data.categories[i];
+        break;
+      }
+    }
+    if (!item && data.categories.length > 0) item = data.categories[0];
+
+    if (!item) {
+      Util.setText("categoryStats", "カテゴリがありません");
+      setWidth("categoryRateBar", 0);
+      return;
+    }
+
+    Util.setText(
+      "categoryStats",
+      "回答 " + item.attempts + "回 / 正解 " + item.c + "回 / 不正解 " + item.w +
+      "回 / 未回答 " + item.unanswered + "問 / 正答率 " + item.rate + "%"
+    );
+    setWidth("categoryRateBar", item.rate);
+  };
+
+  Render.renderAnalysis = function () {
+    var data = buildAnalysis();
+    var rate = data.attempts > 0 ? Math.round((data.correct / data.attempts) * 100) : 0;
+
+    Util.setText("analysisAttempts", data.attempts);
+    Util.setText("analysisRate", rate + "%");
+    Util.setText("analysisUnanswered", data.unanswered);
+    Util.setText("analysisWeak", data.weak);
+    setWidth("overallCorrectBar", rate);
+    setWidth("overallWrongBar", data.attempts > 0 ? 100 - rate : 0);
+
+    Util.setText(
+      "overallLegend",
+      data.attempts > 0
+        ? "正解 " + data.correct + "回（" + rate + "%） / 不正解 " + data.wrong + "回（" + (100 - rate) + "%）"
+        : "まだ回答履歴がありません"
+    );
+
+    var sel = Util.byId("analysisCategorySelect");
+    if (sel) {
+      var previous = sel.value;
+      while (sel.options.length > 0) sel.remove(0);
+      for (var i = 0; i < data.categories.length; i++) {
+        var option = document.createElement("option");
+        option.value = data.categories[i].name;
+        option.textContent = data.categories[i].name;
+        sel.appendChild(option);
+      }
+      if (previous) sel.value = previous;
+      if (!sel.value && sel.options.length > 0) sel.selectedIndex = 0;
+    }
+    Render.renderCategoryAnalysis();
+
+    var review = [];
+    for (var j = 0; j < data.categories.length; j++) {
+      if (data.categories[j].attempts > 0) review.push(data.categories[j]);
+    }
+    review.sort(function (a, b) {
+      if (a.rate !== b.rate) return a.rate - b.rate;
+      return b.attempts - a.attempts;
+    });
+
+    var wrap = Util.byId("reviewCategoryList");
+    if (!wrap) return;
+    while (wrap.firstChild) wrap.removeChild(wrap.firstChild);
+
+    if (review.length === 0) {
+      var empty = document.createElement("div");
+      empty.className = "analysisEmpty";
+      empty.textContent = "回答すると、要復習カテゴリが表示されます。";
+      wrap.appendChild(empty);
+      return;
+    }
+
+    var limit = review.length < 5 ? review.length : 5;
+    for (var k = 0; k < limit; k++) {
+      var rowEl = document.createElement("div");
+      rowEl.className = "reviewRow";
+      var nameEl = document.createElement("div");
+      nameEl.className = "reviewName";
+      nameEl.textContent = (k + 1) + ". " + review[k].name;
+      nameEl.title = review[k].name;
+      var rateEl = document.createElement("div");
+      rateEl.className = "reviewRate";
+      rateEl.textContent = review[k].rate + "% (" + review[k].attempts + "回)";
+      rowEl.appendChild(nameEl);
+      rowEl.appendChild(rateEl);
+      wrap.appendChild(rowEl);
+    }
+  };
+
   /* [IDX-020] 右上情報 */
   Render.renderTopInfo = function () {
     var el = Util.byId("topInfo");
@@ -80,8 +259,8 @@
 
     Util.setDisplay("boxCategory", !on);
     Util.setDisplay("boxRandomStart", !on);
-    Util.setDisplay("boxIdStart", !on);
-    Util.setDisplay("btnClearHistory", !on);
+    Util.setDisplay("boxSequentialStart", !on);
+    Util.setDisplay("analysisPanel", !on);
   };
 
   function clearChoices() {
@@ -108,6 +287,60 @@
     btn.appendChild(key);
     btn.appendChild(txt);
     return btn;
+  }
+
+  function submitAnswer(answerText) {
+    var res = Engine.selectAnswer(answerText);
+    if (!res || !res.ok) return;
+
+    HistoryStore.inc(State.App.histMap, res.idText, !!res.isCorrect);
+    State.log("履歴更新: " + res.idText + " / " + (res.isCorrect ? "正解+1" : "不正解+1"));
+
+    Render.renderQuestion();
+    Render.renderFooter();
+    Render.renderAnalysis();
+    Render.showAnswerModal(res);
+  }
+
+  function renderTextAnswer(wrap, ans) {
+    var area = document.createElement("div");
+    area.className = "textAnswerArea";
+
+    var input = document.createElement("input");
+    input.type = "text";
+    input.className = "textAnswerInput";
+    input.placeholder = "答えを入力";
+    input.value = ans.selectedText || "";
+    input.disabled = !!ans.isAnswered;
+
+    var button = document.createElement("button");
+    button.className = "btnPrimary textAnswerButton";
+    button.textContent = "回答する";
+    button.disabled = !!ans.isAnswered;
+
+    function send() {
+      if (ans.isAnswered) return;
+      var value = input.value;
+      if (!String(value).replace(/^\s+|\s+$/g, "")) {
+        input.focus();
+        return;
+      }
+      submitAnswer(value);
+    }
+
+    button.onclick = send;
+    input.onkeydown = function (event) {
+      event = event || window.event;
+      if ((event.key && event.key === "Enter") || event.keyCode === 13) send();
+    };
+
+    area.appendChild(input);
+    area.appendChild(button);
+    wrap.appendChild(area);
+
+    if (!ans.isAnswered) {
+      try { input.focus(); } catch (e) {}
+    }
   }
 
   /* [IDX-060] 出題表示 */
@@ -153,6 +386,18 @@
     var wrap = Util.byId("choices");
     if (!wrap) return;
 
+    var hint = Util.byId("answerHint");
+    if (hint) {
+      hint.textContent = (ans.type === "text")
+        ? "記述問題（答えを入力 / 回答は1回のみ）"
+        : "選択肢（毎回ランダム表示 / 回答は1回のみ）";
+    }
+
+    if (ans.type === "text") {
+      renderTextAnswer(wrap, ans);
+      return;
+    }
+
     for (var i = 0; i < ans.options.length; i++) {
       var opt = ans.options[i];
 
@@ -169,16 +414,7 @@
       if (!ans.isAnswered) {
         (function (choiceText) {
           btn.onclick = function () {
-            var res = Engine.selectAnswer(choiceText);
-            if (!res || !res.ok) return;
-
-            /* [IDX-062] Cookie履歴更新 */
-            HistoryStore.inc(State.App.histMap, res.idText, !!res.isCorrect);
-            State.log("履歴更新: " + res.idText + " / " + (res.isCorrect ? "正解+1" : "不正解+1"));
-
-            Render.renderQuestion();
-            Render.renderFooter();
-            Render.showAnswerModal(res);
+            submitAnswer(choiceText);
           };
         })(opt.text);
       } else {
@@ -249,24 +485,12 @@
     var snap = Engine.buildResultSnapshot();
     var r = (snap && snap.result) ? snap.result : { total: 0, answered: 0, correct: 0, wrong: 0, rate: 0, at: Util.nowStamp() };
 
-    /* [IDX-111] Cookie履歴（全体） */
-    var histArr = HistoryStore.toArraySorted(State.App.histMap);
-    var histText = "";
-    for (var i = 0; i < histArr.length; i++) {
-      var h = histArr[i];
-      histText += "ID" + h.id + "：正解" + h.c + " 不正解" + h.w + "\n";
-    }
-    if (!histText) histText = "（履歴なし）\n";
-
     var html = "";
     html += "<div class='resultStats'>問題数: " + Util.esc(r.total) + "</div>";
     html += "<div class='resultStats'>回答数: " + Util.esc(r.answered) + "</div>";
     html += "<div class='resultStats'>正解数: " + Util.esc(r.correct) + "</div>";
     html += "<div class='resultStats'>不正解数: " + Util.esc(r.wrong) + "</div>";
     html += "<div class='resultStats'>正答率: " + Util.esc(r.rate) + "%</div>";
-
-    html += '<div class="modalSectionTitle">累積履歴（Cookie）</div>';
-    html += "<div style='white-space:pre-wrap;'>" + Util.esc(histText) + "</div>";
 
     html += "<div style='margin-top:10px;'>お疲れさまでした。</div>";
 
