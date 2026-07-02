@@ -445,8 +445,10 @@
   function hideOverlay() { Util.byId("modalOverlay").style.display = "none"; }
 
   function setModal(mode) {
+    var box = Util.byId("modalOverlay").getElementsByTagName("div")[0];
     Util.byId("modalFooterAnswer").style.display = (mode === "answer") ? "flex" : "none";
     Util.byId("modalFooterResult").style.display = (mode === "result") ? "flex" : "none";
+    if (box) box.className = "modalBox " + ((mode === "result") ? "resultMode" : "answerMode");
   }
 
   /* [IDX-100] 回答結果モーダル */
