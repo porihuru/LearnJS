@@ -124,16 +124,25 @@ html, body {
 }
 .analysisHeader .panelTitle { margin-bottom: 0; }
 .analysisSummary {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(110px, 1fr));
-  gap: 8px;
   margin-top: 12px;
+  font-size: 0;
+  white-space: nowrap;
 }
 .summaryCard {
+  display: inline-block;
+  vertical-align: top;
+  width: 24%;
+  margin-right: 1%;
   border: 1px solid #e1e5e9;
   border-radius: 8px;
   background: #f8fafc;
   padding: 10px;
+  box-sizing: border-box;
+  font-size: 12px;
+  white-space: normal;
+}
+.summaryCard:last-child {
+  margin-right: 0;
 }
 .summaryLabel {
   display: block;
@@ -410,7 +419,12 @@ html, body {
   overflow: hidden;
 }
 
-.modalTitle { font-size: 16px; font-weight: 700; margin-bottom: 10px; }
+.modalTitle {
+  padding-right: 72px;
+  font-size: 16px;
+  font-weight: 700;
+  margin-bottom: 10px;
+}
 
 .modalBody {
   font-size: 14px;
@@ -465,7 +479,6 @@ html, body {
     min-width: 0;
     max-width: none;
   }
-  .analysisSummary { grid-template-columns: repeat(2, minmax(100px, 1fr)); }
   .analysisColumns { grid-template-columns: 1fr; gap: 0; }
   .btnPractice { width: 100%; }
   .modalBox { top: 6%; }
@@ -494,6 +507,231 @@ html, body {
 }
 
 /* [IDX-160] 結果表示（メール本文風）を等幅で見やすく */
+#modalFooterAnswer {
+  justify-content: center;
+}
+
+#modalFooterAnswer .mfLeft {
+  width: 100%;
+  justify-content: center;
+}
+
+#modalFooterAnswer .mfRight {
+  position: absolute;
+  top: 10px;
+  right: 14px;
+}
+
+#btnModalNext {
+  width: 420px;
+  max-width: 100%;
+  min-height: 52px;
+  font-size: 18px;
+}
+
+#btnModalEnd {
+  width: auto;
+  min-height: 28px;
+  height: 28px;
+  padding: 0 8px;
+  border-radius: 6px;
+  font-size: 12px;
+}
+
+#modalFooterResult button {
+  min-width: 150px;
+  min-height: 48px;
+  padding: 0 22px;
+  font-size: 18px;
+}
+
+#btnModalClose {
+  min-width: 170px;
+}
+
+.resultHero {
+  padding: 14px 12px 16px 12px;
+  border: 1px solid #c8d7e6;
+  border-radius: 8px;
+  background: #f5f9fd;
+  text-align: center;
+}
+
+.resultRateNumber {
+  color: #12569a;
+  font-size: 48px;
+  line-height: 1;
+  font-weight: 800;
+}
+
+.resultRateLabel {
+  margin-top: 4px;
+  color: #41566a;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.resultMessage {
+  margin-top: 10px;
+  color: #17324d;
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.resultSummaryGrid {
+  margin-top: 12px;
+  font-size: 0;
+  white-space: nowrap;
+}
+
+.resultStatCard {
+  display: inline-block;
+  width: 24%;
+  margin-right: 1%;
+  padding: 10px 8px;
+  border: 1px solid #d4dee8;
+  border-radius: 8px;
+  background: #fff;
+  box-sizing: border-box;
+  text-align: center;
+  white-space: normal;
+}
+
+.resultStatCard:last-child {
+  margin-right: 0;
+}
+
+.resultStatCard span {
+  display: block;
+  color: #53677a;
+  font-size: 12px;
+}
+
+.resultStatCard strong {
+  display: block;
+  margin-top: 3px;
+  color: #17212b;
+  font-size: 24px;
+}
+
+.resultChartBlock {
+  margin-top: 14px;
+  padding: 12px;
+  border: 1px solid #d4dee8;
+  border-radius: 8px;
+  background: #fff;
+}
+
+.resultChartTitle {
+  margin-bottom: 9px;
+  color: #17324d;
+  font-size: 15px;
+  font-weight: 800;
+}
+
+.resultStackBar {
+  width: 100%;
+  height: 22px;
+  overflow: hidden;
+  border-radius: 11px;
+  background: #d5dee7;
+  font-size: 0;
+  white-space: nowrap;
+}
+
+.resultStackCorrect,
+.resultStackWrong {
+  display: inline-block;
+  height: 22px;
+  vertical-align: top;
+}
+
+.resultStackCorrect { background: #1764ad; }
+.resultStackWrong { background: #bd4040; }
+
+.resultLegend {
+  margin-top: 8px;
+  font-size: 13px;
+  color: #34495e;
+}
+
+.resultLegend span {
+  margin-right: 14px;
+}
+
+.legendCorrect { color: #1764ad; }
+.legendWrong { color: #a52a2a; }
+
+.resultCategoryRow {
+  margin-top: 10px;
+}
+
+.resultCategoryHead {
+  display: table;
+  width: 100%;
+  margin-bottom: 4px;
+  font-size: 13px;
+}
+
+.resultCategoryHead span,
+.resultCategoryHead b {
+  display: table-cell;
+  vertical-align: middle;
+}
+
+.resultCategoryHead b {
+  width: 58px;
+  text-align: right;
+}
+
+.resultMiniBar {
+  height: 12px;
+  overflow: hidden;
+  border-radius: 6px;
+  background: #e4ebf2;
+}
+
+.resultMiniBar div {
+  height: 12px;
+  background: #2b7a78;
+}
+
+.resultCategoryNote,
+.resultTimestamp {
+  margin-top: 4px;
+  color: #53677a;
+  font-size: 12px;
+}
+
+.resultTimestamp {
+  text-align: right;
+}
+
+@media (max-width: 600px) {
+  #btnModalNext { max-width: 100%; }
+  #modalFooterResult {
+    display: block;
+  }
+  #modalFooterResult .mfLeft,
+  #modalFooterResult .mfRight {
+    display: block;
+  }
+  #modalFooterResult button {
+    width: 100%;
+    margin: 0 0 8px 0;
+  }
+  .resultSummaryGrid {
+    white-space: normal;
+  }
+  .resultStatCard {
+    width: 49%;
+    margin-bottom: 6px;
+  }
+  .resultStatCard:nth-child(2n) {
+    margin-right: 0;
+  }
+}
+
 .monoBlock {
   font-family: Consolas, "Courier New", monospace;
   font-size: 12px;

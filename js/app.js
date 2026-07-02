@@ -74,6 +74,26 @@
       };
     }
 
+    document.onkeydown = function (event) {
+      var overlay = Util.byId("modalOverlay");
+      var footerAnswer = Util.byId("modalFooterAnswer");
+      var target;
+      var tagName;
+      event = event || window.event;
+      target = event.target || event.srcElement;
+      tagName = target && target.tagName ? String(target.tagName).toLowerCase() : "";
+
+      if (!overlay || !footerAnswer || !btnNext) return;
+      if (overlay.style.display === "none") return;
+      if (footerAnswer.style.display === "none") return;
+      if (!((event.key && event.key === "Enter") || event.keyCode === 13)) return;
+      if (tagName === "input" || tagName === "textarea" || tagName === "select") return;
+
+      if (event.preventDefault) event.preventDefault();
+      event.returnValue = false;
+      btnNext.onclick();
+    };
+
     if (btnEnd) {
       btnEnd.onclick = function () {
         Render.hideModal();

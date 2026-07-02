@@ -329,9 +329,23 @@
     }
 
     button.onclick = send;
+    var isComposing = false;
+    input.oncompositionstart = function () {
+      isComposing = true;
+    };
+    input.oncompositionend = function () {
+      isComposing = false;
+    };
     input.onkeydown = function (event) {
       event = event || window.event;
-      if ((event.key && event.key === "Enter") || event.keyCode === 13) send();
+      if (isComposing || event.isComposing || event.keyCode === 229) return;
+      if ((event.key && event.key === "Enter") || event.keyCode === 13) {
+        if (event.preventDefault) event.preventDefault();
+        if (event.stopPropagation) event.stopPropagation();
+        event.returnValue = false;
+        event.cancelBubble = true;
+        send();
+      }
     };
 
     area.appendChild(input);
@@ -471,6 +485,9 @@
 
     body.innerHTML = html;
     showOverlay();
+    global.setTimeout(function () {
+      try { Util.byId("btnModalNext").focus(); } catch (e) {}
+    }, 50);
   };
 
   /* [IDX-110] 結果発表モーダル（印刷/メール用スナップショット生成） */
@@ -493,6 +510,81 @@
     html += "<div class='resultStats'>正答率: " + Util.esc(r.rate) + "%</div>";
 
     html += "<div style='margin-top:10px;'>お疲れさまでした。</div>";
+
+    body.innerHTML = html;
+    showOverlay();
+  };
+
+  Render.showResultModal = function () {
+    var title = Util.byId("modalTitle");
+    var body = Util.byId("modalBody");
+    if (!title || !body) return;
+
+    setModal("result");
+    title.textContent = "結果発表";
+
+    var snap = Engine.buildResultSnapshot();
+    var r = (snap && snap.result) ? snap.result : { total: 0, answered: 0, correct: 0, wrong: 0, rate: 0, at: Util.nowStamp() };
+    var details = (snap && snap.details) ? snap.details : [];
+    var wrongRate = r.total > 0 ? Math.round((r.wrong / r.total) * 100) : 0;
+    var categories = {};
+    var categoryList = [];
+    var i;
+
+    for (i = 0; i < details.length; i++) {
+      var d = details[i] || {};
+      var name = d.category || "カテゴリなし";
+      var answered = !!d.selected;
+      if (!categories[name]) {
+        categories[name] = { name: name, answered: 0, correct: 0, wrong: 0 };
+        categoryList.push(categories[name]);
+      }
+      if (answered) {
+        categories[name].answered++;
+        if (d.ok) categories[name].correct++;
+        else categories[name].wrong++;
+      }
+    }
+
+    var html = "";
+    html += "<div class='resultHero'>";
+    html += "<div class='resultRateNumber'>" + Util.esc(r.rate) + "%</div>";
+    html += "<div class='resultRateLabel'>正答率</div>";
+    html += "<div class='resultMessage'>お疲れさまでした</div>";
+    html += "</div>";
+
+    html += "<div class='resultSummaryGrid'>";
+    html += "<div class='resultStatCard'><span>問題数</span><strong>" + Util.esc(r.total) + "</strong></div>";
+    html += "<div class='resultStatCard'><span>回答数</span><strong>" + Util.esc(r.answered) + "</strong></div>";
+    html += "<div class='resultStatCard'><span>正解</span><strong>" + Util.esc(r.correct) + "</strong></div>";
+    html += "<div class='resultStatCard'><span>不正解</span><strong>" + Util.esc(r.wrong) + "</strong></div>";
+    html += "</div>";
+
+    html += "<div class='resultChartBlock'>";
+    html += "<div class='resultChartTitle'>正解・不正解の割合</div>";
+    html += "<div class='resultStackBar'>";
+    html += "<div class='resultStackCorrect' style='width:" + Util.esc(r.rate) + "%;'></div>";
+    html += "<div class='resultStackWrong' style='width:" + Util.esc(wrongRate) + "%;'></div>";
+    html += "</div>";
+    html += "<div class='resultLegend'><span class='legendCorrect'>正解 " + Util.esc(r.correct) + "問</span><span class='legendWrong'>不正解 " + Util.esc(r.wrong) + "問</span></div>";
+    html += "</div>";
+
+    if (categoryList.length > 0) {
+      html += "<div class='resultChartBlock'>";
+      html += "<div class='resultChartTitle'>カテゴリ別の正答率</div>";
+      for (i = 0; i < categoryList.length; i++) {
+        var item = categoryList[i];
+        var itemRate = item.answered > 0 ? Math.round((item.correct / item.answered) * 100) : 0;
+        html += "<div class='resultCategoryRow'>";
+        html += "<div class='resultCategoryHead'><span>" + Util.esc(item.name) + "</span><b>" + Util.esc(itemRate) + "%</b></div>";
+        html += "<div class='resultMiniBar'><div style='width:" + Util.esc(itemRate) + "%;'></div></div>";
+        html += "<div class='resultCategoryNote'>正解 " + Util.esc(item.correct) + " / 回答 " + Util.esc(item.answered) + "</div>";
+        html += "</div>";
+      }
+      html += "</div>";
+    }
+
+    html += "<div class='resultTimestamp'>集計日時: " + Util.esc(r.at) + "</div>";
 
     body.innerHTML = html;
     showOverlay();
