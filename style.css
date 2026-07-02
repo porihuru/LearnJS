@@ -325,6 +325,7 @@ html, body {
   line-height: 1.35;
   vertical-align: top;
   width: calc(100% - 40px);
+  word-break: break-all;
 }
 
 .choiceBtn.isLocked { cursor: default; opacity: 0.97; }
