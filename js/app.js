@@ -51,6 +51,18 @@
   }
 
   /* [IDX-010] モーダルボタン */
+  function hasClass(el, name) {
+    return el && (" " + el.className + " ").indexOf(" " + name + " ") >= 0;
+  }
+
+  function addClass(el, name) {
+    if (el && !hasClass(el, name)) el.className = (el.className ? el.className + " " : "") + name;
+  }
+
+  function removeClass(el, name) {
+    if (el) el.className = (" " + el.className + " ").replace(" " + name + " ", " ").replace(/^\s+|\s+$/g, "");
+  }
+
   function bindModalButtons() {
     var btnNext = Util.byId("btnModalNext");
     var btnEnd = Util.byId("btnModalEnd");
@@ -205,14 +217,14 @@
         var logBox = Util.byId("logBox");
         var logPanel = Util.byId("logPanel");
         if (!logBox || !logPanel) return;
-        var isClosed = logBox.classList.contains("logBoxClosed");
+        var isClosed = hasClass(logBox, "logBoxClosed");
         if (isClosed) {
-          logBox.classList.remove("logBoxClosed");
-          logPanel.classList.remove("logPanelClosed");
+          removeClass(logBox, "logBoxClosed");
+          removeClass(logPanel, "logPanelClosed");
           btnToggleLog.textContent = "閉じる";
         } else {
-          logBox.classList.add("logBoxClosed");
-          logPanel.classList.add("logPanelClosed");
+          addClass(logBox, "logBoxClosed");
+          addClass(logPanel, "logPanelClosed");
           btnToggleLog.textContent = "開く";
         }
       };

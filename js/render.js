@@ -446,8 +446,8 @@
 
   function setModal(mode) {
     var box = Util.byId("modalOverlay").getElementsByTagName("div")[0];
-    Util.byId("modalFooterAnswer").style.display = (mode === "answer") ? "flex" : "none";
-    Util.byId("modalFooterResult").style.display = (mode === "result") ? "flex" : "none";
+    Util.byId("modalFooterAnswer").style.display = (mode === "answer") ? "block" : "none";
+    Util.byId("modalFooterResult").style.display = (mode === "result") ? "block" : "none";
     if (box) box.className = "modalBox " + ((mode === "result") ? "resultMode" : "answerMode");
   }
 
