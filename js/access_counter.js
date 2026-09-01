@@ -1,11 +1,12 @@
 /*
   ファイル: js/access_counter.js
-  VERSION: 20260901-01
+  VERSION: 20260901-02
 
   LearnJS専用 SharePointアクセスカウンター
   - Edge 95 / IE11互換モード対応
   - ES5 / XMLHttpRequestのみ使用
   - SharePointの現在ユーザーを取得し、ユーザー別アクセス回数を記録
+  - ホーム画面にはトータルアクセス数のみ表示
   - SharePoint接続失敗時もクイズ本体には影響させない
 
   SharePointリスト: learnjs_accesscounter
@@ -21,7 +22,7 @@
   "use strict";
 
   var AccessCounter = {};
-  AccessCounter.VERSION = "20260901-01";
+  AccessCounter.VERSION = "20260901-02";
 
   var CONFIG = {
     webRoot: "/na/NA/NAFin/fin_csm",
@@ -82,12 +83,12 @@
     return el;
   }
 
-  function setDisplay(total, mine, displayName) {
+  function setDisplay(total) {
     var el = ensureDisplay();
     if (!el) return;
-    el.innerHTML = "アクセス 合計" + String(total) + "回 / あなた" + String(mine) + "回";
+    el.innerHTML = "アクセス: " + String(total) + "回";
     el.style.color = "#607080";
-    el.title = displayName ? ("利用者: " + displayName) : "LearnJSアクセスカウンター";
+    el.title = "LearnJS 総アクセス数";
   }
 
   function setUnavailable() {
@@ -320,7 +321,7 @@
           user,
           nextMine,
           function () {
-            setDisplay(nextTotal, nextMine, String(user.Title || ""));
+            setDisplay(nextTotal);
           },
           function () {
             setUnavailable();
