@@ -1,11 +1,12 @@
 /*
   ファイル: js/access_counter.js
-  VERSION: 20260901-02
+  VERSION: 20260903-01
 
   LearnJS専用 SharePointアクセスカウンター
   - Edge 95 / IE11互換モード対応
   - ES5 / XMLHttpRequestのみ使用
-  - SharePointの現在ユーザーを取得し、ユーザー別アクセス回数を記録
+  - SharePointの現在ユーザーを取得し、ユーザー別の問題開始回数を記録
+  - ページ起動時は回数を増やさず、最終起動日時のみ更新
   - ホーム画面にはトータルアクセス数のみ表示
   - SharePoint接続失敗時もクイズ本体には影響させない
 
@@ -15,14 +16,14 @@
     spuserid   : 数値
     loginname  : 1行テキスト
     email      : 1行テキスト
-    count      : 数値
-    lastaccess : 日付と時刻
+    count      : 数値（既存値を引き継いだ累積問題開始回数）
+    lastaccess : 日付と時刻（最終ページ起動日時）
 */
 (function (global) {
   "use strict";
 
   var AccessCounter = {};
-  AccessCounter.VERSION = "20260901-02";
+  AccessCounter.VERSION = "20260903-01";
 
   var CONFIG = {
     webRoot: "/na/NA/NAFin/fin_csm",
@@ -86,9 +87,9 @@
   function setDisplay(total) {
     var el = ensureDisplay();
     if (!el) return;
-    el.innerHTML = "アクセス: " + String(total) + "回";
+    el.innerHTML = "問題開始: " + String(total) + "回";
     el.style.color = "#607080";
-    el.title = "LearnJS 総アクセス数";
+    el.title = "LearnJS 問題開始回数";
   }
 
   function setUnavailable() {
@@ -238,7 +239,7 @@
     );
   }
 
-  function buildBody(entityType, user, nextCount) {
+  function buildBody(entityType, user, nextCount, lastaccess) {
     return {
       "__metadata": { "type": entityType },
       "Title": String(user.Title || user.LoginName || "(unknown)"),
@@ -246,11 +247,11 @@
       "loginname": String(user.LoginName || ""),
       "email": String(user.Email || ""),
       "count": nextCount,
-      "lastaccess": isoNow()
+      "lastaccess": lastaccess || isoNow()
     };
   }
 
-  function saveRow(item, user, nextCount, success, error) {
+  function saveRow(item, user, nextCount, lastaccess, success, error) {
     getEntityType(function (entityType) {
       getDigest(function (digest) {
         var title = escapeListTitle(CONFIG.listTitle);
@@ -260,7 +261,7 @@
           "Content-Type": "application/json;odata=verbose",
           "X-RequestDigest": digest
         };
-        var body = JSON.stringify(buildBody(entityType, user, nextCount));
+        var body = JSON.stringify(buildBody(entityType, user, nextCount, lastaccess));
 
         if (item && item.Id) {
           url = apiRoot() + "/web/lists/getbytitle('" + title + "')/items(" + item.Id + ")";
@@ -313,15 +314,46 @@
 
       loadRows(function (rows) {
         var s = summarize(rows, userId);
-        var nextMine = s.mine + 1;
-        var nextTotal = s.total + 1;
 
         saveRow(
           s.mineRow,
           user,
-          nextMine,
+          s.mine,
+          isoNow(),
           function () {
-            setDisplay(nextTotal);
+            setDisplay(s.total);
+          },
+          function () {
+            setUnavailable();
+          }
+        );
+      }, function () {
+        setUnavailable();
+      });
+    }, function () {
+      setUnavailable();
+    });
+  };
+
+  AccessCounter.recordProblemStart = function () {
+    getCurrentUser(function (user) {
+      var userId = parseInt(user.Id, 10);
+      if (isNaN(userId) || userId <= 0) {
+        setUnavailable();
+        return;
+      }
+
+      loadRows(function (rows) {
+        var s = summarize(rows, userId);
+        var lastaccess = s.mineRow && s.mineRow.lastaccess ? s.mineRow.lastaccess : isoNow();
+
+        saveRow(
+          s.mineRow,
+          user,
+          s.mine + 1,
+          lastaccess,
+          function () {
+            setDisplay(s.total + 1);
           },
           function () {
             setUnavailable();

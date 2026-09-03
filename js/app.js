@@ -45,6 +45,9 @@
       return;
     }
 
+    if (global.AccessCounter && AccessCounter.recordProblemStart) {
+      AccessCounter.recordProblemStart();
+    }
     Render.setQuizMode(true);
     Render.renderQuestion();
     Render.renderFooter();
@@ -157,6 +160,9 @@
         var n = Util.toInt(Util.byId("randomCount").value, 10);
 
         Engine.startRandom(cat, n);
+        if (global.AccessCounter && AccessCounter.recordProblemStart) {
+          AccessCounter.recordProblemStart();
+        }
         Render.setQuizMode(true);
 
         Render.renderQuestion();
@@ -191,6 +197,9 @@
         if (sid < 1) return;
 
         Engine.startFromId(cat, sid, n);
+        if (global.AccessCounter && AccessCounter.recordProblemStart) {
+          AccessCounter.recordProblemStart();
+        }
         Render.setQuizMode(true);
 
         Render.renderQuestion();
